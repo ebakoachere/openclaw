@@ -1591,6 +1591,10 @@ importers:
         version: link:../../packages/plugin-sdk
 
   extensions/vctraderai-account-state:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1598,11 +1602,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-audit:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1610,11 +1615,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-describe-parquet:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1622,11 +1628,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-econ-calendar-tail:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1634,11 +1641,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-explain:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1646,11 +1654,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-get-coverage:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1658,11 +1667,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-get-data-root:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1670,11 +1680,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-latest-ohlcv-file:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1682,11 +1693,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-list-tree:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1694,11 +1706,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-ohlcv-tail:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1706,11 +1719,12 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/vctraderai-parquet-preview-tail:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*
@@ -1718,9 +1732,6 @@ importers:
       openclaw:
         specifier: workspace:*
         version: link:../..
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
 
   extensions/venice:
     devDependencies:

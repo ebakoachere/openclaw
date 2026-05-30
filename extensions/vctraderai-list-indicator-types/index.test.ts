@@ -26,7 +26,7 @@ describe("vctraderai-list-indicator-types", () => {
         status: 200,
         headers: { "content-type": "application/json" },
       })) as typeof globalThis.fetch;
-    const result = await runListIndicatorTypes({}, { fetchImpl });
+    const result = await runListIndicatorTypes({ fetchImpl });
     expect(result).toEqual(envelope);
   });
 
@@ -37,7 +37,7 @@ describe("vctraderai-list-indicator-types", () => {
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runListIndicatorTypes({}, { fetchImpl });
+    await runListIndicatorTypes({ fetchImpl });
     const parsed = new URL(capturedUrl);
     expect(parsed.pathname).toBe("/api/v1/openclaw/catalogue/indicator-types");
     expect(parsed.searchParams.toString()).toBe("");
@@ -49,7 +49,7 @@ describe("vctraderai-list-indicator-types", () => {
         status: 500,
         statusText: "Internal Server Error",
       })) as typeof globalThis.fetch;
-    await expect(runListIndicatorTypes({}, { fetchImpl })).rejects.toMatchObject({
+    await expect(runListIndicatorTypes({ fetchImpl })).rejects.toMatchObject({
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });

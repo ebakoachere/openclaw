@@ -15,10 +15,7 @@ export type ListStopLossTypesDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type ListStopLossTypesParams = Record<string, never>;
-
 export async function runListStopLossTypes(
-  params: ListStopLossTypesParams,
   deps: ListStopLossTypesDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "List stop-loss types from the propfirm_manager core.stop_loss_types catalogue (stop_loss_type_id, name). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runListStopLossTypes(params, {}, context.signal);
+        return runListStopLossTypes({}, context.signal);
       },
     }),
   ],

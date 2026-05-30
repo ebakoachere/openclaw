@@ -15,10 +15,7 @@ export type ListVenuesDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type ListVenuesParams = Record<string, never>;
-
 export async function runListVenues(
-  params: ListVenuesParams,
   deps: ListVenuesDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "List trading venues from the propfirm_manager core.venues catalogue (venue_id, name). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runListVenues(params, {}, context.signal);
+        return runListVenues({}, context.signal);
       },
     }),
   ],

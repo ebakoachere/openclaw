@@ -15,10 +15,7 @@ export type ListIndicatorTypesDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type ListIndicatorTypesParams = Record<string, never>;
-
 export async function runListIndicatorTypes(
-  params: ListIndicatorTypesParams,
   deps: ListIndicatorTypesDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "List indicator types from the propfirm_manager core.indicator_types catalogue (indicator_type_id, name). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runListIndicatorTypes(params, {}, context.signal);
+        return runListIndicatorTypes({}, context.signal);
       },
     }),
   ],

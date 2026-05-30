@@ -37,7 +37,7 @@ describe("vctraderai-get-component-creation-guide", () => {
         status: 200,
         headers: { "content-type": "application/json" },
       })) as typeof globalThis.fetch;
-    const result = await runGetComponentCreationGuide({}, { fetchImpl });
+    const result = await runGetComponentCreationGuide({ fetchImpl });
     expect(result).toEqual(envelope);
   });
 
@@ -48,7 +48,7 @@ describe("vctraderai-get-component-creation-guide", () => {
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runGetComponentCreationGuide({}, { fetchImpl });
+    await runGetComponentCreationGuide({ fetchImpl });
     const parsed = new URL(capturedUrl);
     expect(parsed.pathname).toBe("/api/v1/openclaw/catalogue/component-creation-guide");
     expect(parsed.searchParams.toString()).toBe("");
@@ -60,7 +60,7 @@ describe("vctraderai-get-component-creation-guide", () => {
         status: 500,
         statusText: "Internal Server Error",
       })) as typeof globalThis.fetch;
-    await expect(runGetComponentCreationGuide({}, { fetchImpl })).rejects.toMatchObject({
+    await expect(runGetComponentCreationGuide({ fetchImpl })).rejects.toMatchObject({
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });

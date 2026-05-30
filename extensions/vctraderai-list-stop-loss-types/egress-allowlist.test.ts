@@ -13,7 +13,7 @@ describe("vctraderai-list-stop-loss-types egress allowlist", () => {
       urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runListStopLossTypes({}, { fetchImpl });
+    await runListStopLossTypes({ fetchImpl });
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
       expect(new URL(url).pathname).toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);
@@ -73,7 +73,7 @@ describe("vctraderai-list-stop-loss-types egress allowlist", () => {
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     controller.abort();
-    await expect(runListStopLossTypes({}, { fetchImpl }, controller.signal)).rejects.toMatchObject({
+    await expect(runListStopLossTypes({ fetchImpl }, controller.signal)).rejects.toMatchObject({
       name: "AbortError",
     });
   });

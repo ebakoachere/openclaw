@@ -15,10 +15,7 @@ export type GetComponentCreationGuideDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type GetComponentCreationGuideParams = Record<string, never>;
-
 export async function runGetComponentCreationGuide(
-  params: GetComponentCreationGuideParams,
   deps: GetComponentCreationGuideDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "Return the propfirm_manager component-creation guide envelope (sections describing how to create strategies, indicators, risk managers, traders). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runGetComponentCreationGuide(params, {}, context.signal);
+        return runGetComponentCreationGuide({}, context.signal);
       },
     }),
   ],

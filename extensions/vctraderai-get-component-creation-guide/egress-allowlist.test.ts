@@ -13,7 +13,7 @@ describe("vctraderai-get-component-creation-guide egress allowlist", () => {
       urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runGetComponentCreationGuide({}, { fetchImpl });
+    await runGetComponentCreationGuide({ fetchImpl });
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
       expect(new URL(url).pathname).toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);
@@ -74,7 +74,7 @@ describe("vctraderai-get-component-creation-guide egress allowlist", () => {
     }) as typeof globalThis.fetch;
     controller.abort();
     await expect(
-      runGetComponentCreationGuide({}, { fetchImpl }, controller.signal),
+      runGetComponentCreationGuide({ fetchImpl }, controller.signal),
     ).rejects.toMatchObject({
       name: "AbortError",
     });

@@ -26,7 +26,7 @@ describe("vctraderai-list-venues", () => {
         status: 200,
         headers: { "content-type": "application/json" },
       })) as typeof globalThis.fetch;
-    const result = await runListVenues({}, { fetchImpl });
+    const result = await runListVenues({ fetchImpl });
     expect(result).toEqual(envelope);
   });
 
@@ -37,7 +37,7 @@ describe("vctraderai-list-venues", () => {
         typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runListVenues({}, { fetchImpl });
+    await runListVenues({ fetchImpl });
     const parsed = new URL(capturedUrl);
     expect(parsed.pathname).toBe("/api/v1/openclaw/catalogue/venues");
     expect(parsed.searchParams.toString()).toBe("");
@@ -49,7 +49,7 @@ describe("vctraderai-list-venues", () => {
         status: 500,
         statusText: "Internal Server Error",
       })) as typeof globalThis.fetch;
-    await expect(runListVenues({}, { fetchImpl })).rejects.toMatchObject({
+    await expect(runListVenues({ fetchImpl })).rejects.toMatchObject({
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });

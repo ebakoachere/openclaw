@@ -15,10 +15,7 @@ export type ListStrategyTypesDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type ListStrategyTypesParams = Record<string, never>;
-
 export async function runListStrategyTypes(
-  params: ListStrategyTypesParams,
   deps: ListStrategyTypesDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "List strategy types from the propfirm_manager core.strategy_types catalogue (strategy_type_id, name). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runListStrategyTypes(params, {}, context.signal);
+        return runListStrategyTypes({}, context.signal);
       },
     }),
   ],

@@ -15,10 +15,7 @@ export type ListSessionsDeps = {
   bffFetch?: BffFetchFn;
 };
 
-export type ListSessionsParams = Record<string, never>;
-
 export async function runListSessions(
-  params: ListSessionsParams,
   deps: ListSessionsDeps = {},
   signal?: AbortSignal,
 ): Promise<unknown> {
@@ -39,9 +36,9 @@ export default defineToolPlugin({
       description:
         "List trading sessions from the propfirm_manager core.sessions catalogue (session_id, code, start_time_utc, end_time_utc). READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({}),
-      async execute(params, _config, context) {
+      async execute(_params, _config, context) {
         context.signal?.throwIfAborted();
-        return runListSessions(params, {}, context.signal);
+        return runListSessions({}, context.signal);
       },
     }),
   ],

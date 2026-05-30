@@ -10,7 +10,7 @@ describe("vctraderai-list-tree egress allowlist", () => {
   it("every captured url on the happy path matches the allowlist", async () => {
     const urls: string[] = [];
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      urls.push(typeof input === "string" ? input : input.toString());
+      urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runListTree({}, { fetchImpl });

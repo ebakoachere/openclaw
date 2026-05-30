@@ -43,7 +43,8 @@ describe("vctraderai-describe-parquet", () => {
   it("calls the parquet/describe path and forwards the required path param", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runDescribeParquet({ path: "dukascopy/EUR_USD/1H/2026/05/29.parquet" }, { fetchImpl });

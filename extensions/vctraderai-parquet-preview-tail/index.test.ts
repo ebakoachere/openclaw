@@ -43,7 +43,8 @@ describe("vctraderai-parquet-preview-tail", () => {
   it("forwards path + n to the preview-tail endpoint as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runParquetPreviewTail({ path: "x.parquet", n: 5 }, { fetchImpl });

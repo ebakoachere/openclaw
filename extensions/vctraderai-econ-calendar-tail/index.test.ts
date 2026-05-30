@@ -40,7 +40,8 @@ describe("vctraderai-econ-calendar-tail", () => {
   it("calls the econ-calendar/tail path and forwards n as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runEconCalendarTail({ n: 10 }, { fetchImpl });
@@ -52,7 +53,8 @@ describe("vctraderai-econ-calendar-tail", () => {
   it("omits n from the query string when undefined", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runEconCalendarTail({}, { fetchImpl });

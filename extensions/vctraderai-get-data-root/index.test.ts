@@ -34,7 +34,8 @@ describe("vctraderai-get-data-root", () => {
     let capturedUrl = "";
     let capturedMethod: string | undefined = undefined;
     const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       capturedMethod = init?.method;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;

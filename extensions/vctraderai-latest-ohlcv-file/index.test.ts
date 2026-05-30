@@ -36,7 +36,8 @@ describe("vctraderai-latest-ohlcv-file", () => {
   it("calls the ohlcv/latest path and forwards required params as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runLatestOhlcvFile({ symbol: "EUR_USD", tf: "1H", provider: "dukascopy" }, { fetchImpl });

@@ -36,7 +36,8 @@ describe("vctraderai-list-tree", () => {
   it("calls the tree path and forwards the root subpath as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runListTree({ root: "provider=dukascopy/instrument=EUR_USD" }, { fetchImpl });
@@ -48,7 +49,8 @@ describe("vctraderai-list-tree", () => {
   it("omits root from the query string when undefined", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runListTree({}, { fetchImpl });

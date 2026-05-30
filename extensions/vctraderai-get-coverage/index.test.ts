@@ -39,7 +39,8 @@ describe("vctraderai-get-coverage", () => {
   it("calls the coverage path and forwards filter params as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runGetCoverage({ symbol: "EUR_USD", provider: "dukascopy", tf: "1H" }, { fetchImpl });
@@ -53,7 +54,8 @@ describe("vctraderai-get-coverage", () => {
   it("omits undefined params from the query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runGetCoverage({ symbol: "EUR_USD" }, { fetchImpl });

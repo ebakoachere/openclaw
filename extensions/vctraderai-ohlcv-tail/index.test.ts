@@ -45,7 +45,8 @@ describe("vctraderai-ohlcv-tail", () => {
   it("forwards symbol + tf + n + provider to the ohlcv/tail endpoint as query string", async () => {
     let capturedUrl = "";
     const fetchImpl = (async (input: RequestInfo | URL) => {
-      capturedUrl = typeof input === "string" ? input : input.toString();
+      capturedUrl =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runOhlcvTail({ symbol: "EUR_USD", tf: "1H", n: 5, provider: "dukascopy" }, { fetchImpl });

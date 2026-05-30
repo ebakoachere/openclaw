@@ -1,0 +1,17 @@
+{
+  "name": "@openclaw/vctraderai-parquet-preview-tail",
+  "version": "2026.5.30",
+  "private": true,
+  "description": "VC Trader AI read-only parquet tail-row preview tool.",
+  "type": "module",
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*",
+    "openclaw": "workspace:*",
+    "typebox": "1.1.38"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

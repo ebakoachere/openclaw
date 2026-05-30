@@ -1,0 +1,17 @@
+{
+  "name": "@openclaw/vctraderai-list-tree",
+  "version": "2026.5.30",
+  "private": true,
+  "description": "VC Trader AI read-only sandbox-scoped filesystem listing tool.",
+  "type": "module",
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*",
+    "openclaw": "workspace:*",
+    "typebox": "1.1.38"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

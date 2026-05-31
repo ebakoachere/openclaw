@@ -55,13 +55,9 @@ export default defineToolPlugin({
           description: "Workflow kind identifier (e.g. 'symbol_discovery', 'parameter_sweep').",
           minLength: 1,
         }),
-        params: Type.Object(
-          {},
-          {
-            additionalProperties: true,
-            description: "Workflow-kind specific params payload.",
-          },
-        ),
+        params: Type.Record(Type.String(), Type.Unknown(), {
+          description: "Workflow-kind specific params payload.",
+        }),
       }),
       async execute(params, _config, context) {
         context.signal?.throwIfAborted();

@@ -22,7 +22,7 @@ export type ListTradersForDeploymentDeps = {
   threadId?: string;
 };
 
-export type ListTradersForDeploymentParams = {};
+export type ListTradersForDeploymentParams = Record<string, unknown>;
 
 function requireWorkspaceId(): string {
   const workspaceId = process.env.PFM_WORKSPACE_ID;

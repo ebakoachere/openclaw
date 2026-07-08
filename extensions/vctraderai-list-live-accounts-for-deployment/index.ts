@@ -22,7 +22,7 @@ export type ListLiveAccountsForDeploymentDeps = {
   threadId?: string;
 };
 
-export type ListLiveAccountsForDeploymentParams = {};
+export type ListLiveAccountsForDeploymentParams = Record<string, unknown>;
 
 function requireWorkspaceId(): string {
   const workspaceId = process.env.PFM_WORKSPACE_ID;

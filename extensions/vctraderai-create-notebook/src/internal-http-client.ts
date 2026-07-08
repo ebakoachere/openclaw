@@ -1,11 +1,28 @@
-// VC Trader AI BFF HTTP client for Agent Alpha control/internal tools.
+// VC Trader AI BFF HTTP client (propose / staging variant).
 //
-// Uses the server-to-server OPENCLAW_GATEWAY_TOKEN and restricts egress to the
-// OpenClaw internal BFF route families used by heartbeat controls and the
-// Session D model-route/signal/briefing tools.
+// Wraps `globalThis.fetch` with an in-plugin allowlist guard that complements
+// the Docker sandbox egress policy. The regex enforces the BFF surfaces this
+// plugin is allowed to call: workspace-scoped paths (ADR 0078) AND the
+// workspace-agnostic `/api/v1/openclaw/<segment>[/<rest>]` tool endpoints. For
+// the cluster-C "propose" tools this includes the single-segment staging
+// endpoint `/api/v1/openclaw/stage`, which the second branch now permits by
+// making the trailing `/<rest>` optional (the read-only templates required two
+// segments such as `catalogue/instruments`). Any non-allowlisted path is
+// rejected before a socket is opened, so a buggy or malicious tool body cannot
+// reach admin/system surfaces by accident.
+//
+// PROPOSE tools STAGE, they never execute: this client POSTs the proposal to
+// the staging endpoint and the human reviews + applies it in the chat. The
+// staging endpoint is the only mutating surface this client can reach, and it
+// only enqueues a reviewable descriptor - it does not touch live trading state.
+//
+// We deliberately ship this helper per-plugin rather than via a shared package:
+// the openclaw extensions boundary forbids cross-extension `src/` imports
+// (`extensions/AGENTS.md`) and a single shared helper is also worth de-duping
+// later, not pre-duping now.
 
 const ALLOWLIST_PATH_PATTERN =
-  /^\/api\/v1\/openclaw\/(heartbeat|model-routes|signals|briefings)(\/[a-z0-9-/]+)?(\?.*)?$/;
+  /^(\/api\/v1\/workspaces\/[0-9a-f-]+\/.+|\/api\/v1\/openclaw\/[a-z]+(\/[a-z0-9-/]+)?)(\?.*)?$/;
 const DEFAULT_BFF_BASE_URL = "http://web_api.local";
 
 export type BffFetchOptions = {
@@ -33,7 +50,7 @@ export type BffError = {
 export class BffEgressViolation extends Error {
   readonly path: string;
   constructor(path: string) {
-    super(`vctraderai bff egress violation: path ${path} is not in the Agent Alpha allowlist`);
+    super(`vctraderai bff egress violation: path ${path} is not in the allowlist`);
     this.name = "BffEgressViolation";
     this.path = path;
   }

@@ -22,7 +22,7 @@ export type ListCurrentDeploymentsDeps = {
   threadId?: string;
 };
 
-export type ListCurrentDeploymentsParams = {};
+export type ListCurrentDeploymentsParams = Record<string, unknown>;
 
 function requireWorkspaceId(): string {
   const workspaceId = process.env.PFM_WORKSPACE_ID;

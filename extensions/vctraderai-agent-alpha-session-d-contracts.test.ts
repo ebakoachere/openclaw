@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -289,7 +290,7 @@ describe("Agent Alpha heartbeat and Session D vctraderai plugins", () => {
       const headers = new Headers(init?.headers);
       capturedAuth = headers.get("authorization");
       capturedTool = headers.get("x-openclaw-tool");
-      capturedBody = init?.body === undefined ? undefined : JSON.parse(String(init.body));
+      capturedBody = init?.body === undefined ? undefined : JSON.parse(init.body as string);
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "content-type": "application/json" },

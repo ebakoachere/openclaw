@@ -16,6 +16,25 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 export const DISPATCH_STRATEGY_EXPERIMENT_TOOL_NAME = "dispatch_strategy_experiment";
 const STAGE_PATH = "/api/v1/openclaw/stage";
 
+/**
+ * Canonical customer-facing experiment kinds, mirroring propfirm_manager
+ * web_api/sandbox/v3/kinds.py CUSTOMER_KIND_VALUES. The vbt_/nautilus_ prefix
+ * MUST match the target strategy's runtime_tag (runtime vbt -> vbt_*, runtime
+ * nautilus -> nautilus_*; a dual-runtime strategy accepts either family -
+ * prefer vbt_*). Any other value (e.g. plain "backtest") is rejected with 422
+ * at stage time and dies at Apply with InvalidExperimentKindError.
+ */
+export const CATALOGUE_EXPERIMENT_KINDS = [
+  "vbt_backtest",
+  "vbt_prop_sim",
+  "vbt_walkforward",
+  "nautilus_backtest",
+  "nautilus_prop_sim",
+  "nautilus_walkforward",
+  "nautilus_prop_walkforward",
+  "stage_b_bundle_run",
+] as const;
+
 export type DispatchStrategyExperimentDeps = {
   fetchImpl?: typeof globalThis.fetch;
   bffFetch?: BffFetchFn;
@@ -80,13 +99,13 @@ export default defineToolPlugin({
   id: "vctraderai-dispatch-strategy-experiment",
   name: "VC Trader AI Dispatch Strategy Experiment (Propose)",
   description:
-    "Stages a strategy-first experiment (backtest/walkforward) dispatch proposal for human review; never dispatches directly.",
+    "Stages a strategy-first experiment dispatch proposal for human review; never dispatches directly. experiment_kind must be one of the 8 catalogue kinds (vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run); the vbt_/nautilus_ prefix must match the strategy's runtime.",
   tools: (tool) => [
     tool({
       name: DISPATCH_STRATEGY_EXPERIMENT_TOOL_NAME,
       label: "Dispatch Strategy Experiment",
       description:
-        "Propose a strategy-first experiment (backtest/walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind; pass config for the run window/instrument. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal's id so the learning loop can bind the run's outcome to your proposal.",
+        "Propose a strategy-first experiment launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. experiment_kind MUST be one of the 8 catalogue kinds: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run (plain 'backtest' or 'walkforward' are NOT valid kinds). The kind's vbt_/nautilus_ prefix must match the target strategy's runtime: vbt_* for runtime vbt, nautilus_* for runtime nautilus; a dual-runtime strategy accepts either family (prefer vbt_*). Call get_strategy first if unsure of the runtime. Provide strategy_id (or strategy_version_id) and experiment_kind; config requires instrument, from_ts, to_ts. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal's id so the learning loop can bind the run's outcome to your proposal.",
       parameters: Type.Object(
         {
           strategy_id: Type.Optional(
@@ -96,12 +115,19 @@ export default defineToolPlugin({
             Type.String({ description: "Specific strategy version id to run." }),
           ),
           experiment_kind: Type.Optional(
-            Type.String({ description: "Experiment kind, e.g. backtest or walkforward." }),
+            Type.String({
+              enum: [...CATALOGUE_EXPERIMENT_KINDS],
+              description:
+                "Catalogue experiment kind. One of: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run. The vbt_/nautilus_ prefix must match the strategy's runtime (dual accepts either; prefer vbt_*). Call get_strategy first if unsure.",
+            }),
           ),
           config: Type.Optional(
             Type.Object(
               {},
-              { additionalProperties: true, description: "Run config (window/instrument)." },
+              {
+                additionalProperties: true,
+                description: "Run config; requires instrument, from_ts and to_ts.",
+              },
             ),
           ),
           bundle_id: Type.Optional(Type.String({ description: "Optional bundle id." })),

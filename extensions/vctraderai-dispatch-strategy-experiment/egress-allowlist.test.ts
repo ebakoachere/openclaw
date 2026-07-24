@@ -23,7 +23,7 @@ describe("vctraderai-dispatch-strategy-experiment egress allowlist", () => {
         return new Response(JSON.stringify({}), { status: 200 });
       }) as typeof globalThis.fetch;
       await runDispatchStrategyExperiment(
-        { strategy_id: "strat-1", experiment_kind: "backtest" },
+        { strategy_id: "strat-1", experiment_kind: "vbt_backtest" },
         { fetchImpl },
       );
       expect(urls.length).toBeGreaterThan(0);

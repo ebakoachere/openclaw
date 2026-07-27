@@ -234,12 +234,23 @@ describe("managed npm root", () => {
 
   it("reads package-level npm overrides for managed plugin installs", async () => {
     await expect(readOpenClawManagedNpmRootOverrides()).resolves.toEqual({
-      axios: "1.16.0",
-      "fast-uri": "3.1.2",
+      "@opentelemetry/propagator-jaeger": "2.9.0",
+      "@vitest/browser": "4.1.10",
+      axios: "1.18.0",
+      "brace-expansion": "5.0.8",
+      "fast-uri": "3.1.4",
       "follow-redirects": "1.16.0",
+      "form-data": "2.5.6",
+      hono: "4.12.25",
       "ip-address": "10.2.0",
+      "linkify-it": "5.0.2",
       "node-domexception": "npm:@nolyfill/domexception@1.0.28",
+      postcss: "8.5.18",
+      protobufjs: "8.4.1",
+      tar: "7.5.19",
+      undici: "8.5.0",
       uuid: "14.0.0",
+      vite: "8.0.16",
     });
   });
 

@@ -139,7 +139,7 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
       id: "vctraderai-dispatch-strategy-experiment",
     });
     plugin.register(captured.api);
-    const description = String((captured.tools[0] as { description?: unknown }).description ?? "");
+    const { description = "" } = captured.tools[0] as { description?: string };
     for (const kind of [
       "vbt_backtest",
       "vbt_prop_sim",

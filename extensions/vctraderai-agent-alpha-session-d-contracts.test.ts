@@ -295,7 +295,7 @@ describe("Agent Alpha heartbeat and Session D vctraderai plugins", () => {
       const headers = new Headers(init?.headers);
       capturedAuth = headers.get("authorization");
       capturedTool = headers.get("x-openclaw-tool");
-      capturedBody = init?.body === undefined ? undefined : JSON.parse(String(init.body));
+      capturedBody = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
       return new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "content-type": "application/json" },

@@ -80,13 +80,13 @@ export default defineToolPlugin({
   id: "vctraderai-dispatch-strategy-experiment",
   name: "VC Trader AI Dispatch Strategy Experiment (Propose)",
   description:
-    "Stages a strategy-first experiment (backtest/walkforward) dispatch proposal for human review; never dispatches directly.",
+    "Stages a strategy-first experiment (backtest / prop-sim / walkforward) dispatch proposal for human review; never dispatches directly.",
   tools: (tool) => [
     tool({
       name: DISPATCH_STRATEGY_EXPERIMENT_TOOL_NAME,
       label: "Dispatch Strategy Experiment",
       description:
-        "Propose a strategy-first experiment (backtest / prop-sim / walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind. experiment_kind MUST be one of the eight catalogue values: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run - a bare \"backtest\" or \"walkforward\" is NOT a kind. config MUST carry the run window using the keys instrument, from_ts and to_ts (ISO-8601); \"start\"/\"end\" are NOT accepted. stage_b_bundle_run additionally requires bundle_id. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal's id so the learning loop can bind the run's outcome to your proposal.",
+        'Propose a strategy-first experiment (backtest / prop-sim / walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind. experiment_kind MUST be one of these seven DISPATCHABLE catalogue values: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward - a bare "backtest" or "walkforward" is NOT a kind. The catalogue also lists stage_b_bundle_run, but it is DEFERRED TO V3 and non-dispatchable: proposing it is rejected with a 422 before anything is staged, so do not use it. config MUST carry the run window using the keys instrument, from_ts and to_ts (ISO-8601); "start"/"end" are NOT accepted. The three prop kinds (vbt_prop_sim, nautilus_prop_sim, nautilus_prop_walkforward) additionally require config.rule_overlay. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal\'s id so the learning loop can bind the run\'s outcome to your proposal.',
       parameters: Type.Object(
         {
           strategy_id: Type.Optional(
@@ -98,7 +98,7 @@ export default defineToolPlugin({
           experiment_kind: Type.Optional(
             Type.String({
               description:
-                "One of the eight catalogue kinds: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run. Bare \"backtest\" / \"walkforward\" are legacy aliases and may be rejected.",
+                'One of the seven dispatchable catalogue kinds: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward. stage_b_bundle_run is catalogue-present but DEFERRED TO V3 - dispatching it always 422s. Bare "backtest" / "walkforward" are legacy aliases and may be rejected.',
               examples: ["vbt_backtest", "nautilus_walkforward"],
             }),
           ),
@@ -108,7 +108,7 @@ export default defineToolPlugin({
               {
                 additionalProperties: true,
                 description:
-                  "Run config. REQUIRED keys: instrument (e.g. EUR_USD), from_ts and to_ts (ISO-8601 window bounds). Use exactly those key names - \"start\" and \"end\" are not accepted. Optional: timeframe.",
+                  'Run config. REQUIRED keys: instrument (e.g. EUR_USD), from_ts and to_ts (ISO-8601 window bounds). Use exactly those key names - "start" and "end" are not accepted. The prop kinds (vbt_prop_sim, nautilus_prop_sim, nautilus_prop_walkforward) ALSO require rule_overlay. Optional: timeframe.',
                 examples: [
                   {
                     instrument: "EUR_USD",

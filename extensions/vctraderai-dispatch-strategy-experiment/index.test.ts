@@ -134,7 +134,7 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
     });
   });
 
-  it("teaches the catalogue kinds and the from_ts/to_ts window keys", async () => {
+  it("teaches the DISPATCHABLE kinds, the window keys, and rule_overlay", async () => {
     const captured = createCapturedPluginRegistration({
       id: "vctraderai-dispatch-strategy-experiment",
     });
@@ -148,11 +148,28 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
       "nautilus_prop_sim",
       "nautilus_walkforward",
       "nautilus_prop_walkforward",
-      "stage_b_bundle_run",
     ]) {
       expect(description).toContain(kind);
     }
     expect(description).toContain("from_ts");
     expect(description).toContain("to_ts");
+    // The three prop kinds also require config.rule_overlay
+    // (web_api/sandbox/v3/kinds.py:350, :400, :440).
+    expect(description).toContain("rule_overlay");
+  });
+
+  it("marks stage_b_bundle_run as V3-deferred rather than offering it", async () => {
+    // It IS in the 8-kind catalogue, but V3_DEFERRED_KIND_VALUES makes it
+    // non-dispatchable in V2: the BFF 422s before anything is staged
+    // (web_api/sandbox/v3/kinds.py:148). Teaching it as usable would send the
+    // model down a path that can only fail.
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-dispatch-strategy-experiment",
+    });
+    plugin.register(captured.api);
+    const { description = "" } = captured.tools[0] as { description?: string };
+    expect(description).toContain("stage_b_bundle_run");
+    expect(description).toMatch(/stage_b_bundle_run[^.]*(DEFERRED TO V3|deferred)/i);
+    expect(description).toMatch(/seven DISPATCHABLE/);
   });
 });

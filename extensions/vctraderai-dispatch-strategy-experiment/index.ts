@@ -86,7 +86,7 @@ export default defineToolPlugin({
       name: DISPATCH_STRATEGY_EXPERIMENT_TOOL_NAME,
       label: "Dispatch Strategy Experiment",
       description:
-        "Propose a strategy-first experiment (backtest/walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind; pass config for the run window/instrument. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal's id so the learning loop can bind the run's outcome to your proposal.",
+        "Propose a strategy-first experiment (backtest / prop-sim / walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind. experiment_kind MUST be one of the eight catalogue values: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run - a bare \"backtest\" or \"walkforward\" is NOT a kind. config MUST carry the run window using the keys instrument, from_ts and to_ts (ISO-8601); \"start\"/\"end\" are NOT accepted. stage_b_bundle_run additionally requires bundle_id. When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal's id so the learning loop can bind the run's outcome to your proposal.",
       parameters: Type.Object(
         {
           strategy_id: Type.Optional(
@@ -96,12 +96,28 @@ export default defineToolPlugin({
             Type.String({ description: "Specific strategy version id to run." }),
           ),
           experiment_kind: Type.Optional(
-            Type.String({ description: "Experiment kind, e.g. backtest or walkforward." }),
+            Type.String({
+              description:
+                "One of the eight catalogue kinds: vbt_backtest, vbt_prop_sim, vbt_walkforward, nautilus_backtest, nautilus_prop_sim, nautilus_walkforward, nautilus_prop_walkforward, stage_b_bundle_run. Bare \"backtest\" / \"walkforward\" are legacy aliases and may be rejected.",
+              examples: ["vbt_backtest", "nautilus_walkforward"],
+            }),
           ),
           config: Type.Optional(
             Type.Object(
               {},
-              { additionalProperties: true, description: "Run config (window/instrument)." },
+              {
+                additionalProperties: true,
+                description:
+                  "Run config. REQUIRED keys: instrument (e.g. EUR_USD), from_ts and to_ts (ISO-8601 window bounds). Use exactly those key names - \"start\" and \"end\" are not accepted. Optional: timeframe.",
+                examples: [
+                  {
+                    instrument: "EUR_USD",
+                    timeframe: "1h",
+                    from_ts: "2026-02-01T00:00:00Z",
+                    to_ts: "2026-07-29T00:00:00Z",
+                  },
+                ],
+              },
             ),
           ),
           bundle_id: Type.Optional(Type.String({ description: "Optional bundle id." })),

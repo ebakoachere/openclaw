@@ -78,4 +78,81 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
       detail: { code: "bff_403", status: 403 },
     });
   });
+  it("relays the BFF's message + retry_suggestion so the model can self-correct", async () => {
+    // The whole point: a 422 used to reach the model as the bare statusText
+    // "Unprocessable Entity", so it could not tell a CONTRACT error from a
+    // backend outage and retried the same wrong shape forever.
+    const fetchImpl = (async () =>
+      new Response(
+        JSON.stringify({
+          detail: {
+            error: {
+              code: "openclaw_stage_invalid_params",
+              message: "config is missing required key(s): from_ts, to_ts.",
+              retry_suggestion:
+                "Re-call dispatch_strategy_experiment with config.from_ts and config.to_ts (ISO-8601).",
+            },
+          },
+        }),
+        { status: 422, statusText: "Unprocessable Entity" },
+      )) as typeof globalThis.fetch;
+
+    await expect(
+      runDispatchStrategyExperiment(
+        { strategy_id: "strat-1", experiment_kind: "vbt_backtest" },
+        { fetchImpl },
+      ),
+    ).rejects.toMatchObject({
+      name: "BffRequestError",
+      detail: {
+        code: "openclaw_stage_invalid_params",
+        status: 422,
+        message: "config is missing required key(s): from_ts, to_ts.",
+        retrySuggestion:
+          "Re-call dispatch_strategy_experiment with config.from_ts and config.to_ts (ISO-8601).",
+      },
+    });
+
+    // The message is what the tool runner shows the model, so the suggestion
+    // has to be IN it, not only on the detail object.
+    await expect(
+      runDispatchStrategyExperiment(
+        { strategy_id: "strat-1", experiment_kind: "vbt_backtest" },
+        { fetchImpl },
+      ),
+    ).rejects.toThrow(/retry_suggestion: Re-call dispatch_strategy_experiment/);
+  });
+
+  it("falls back to the status line when the error body is unreadable", async () => {
+    const fetchImpl = (async () =>
+      new Response("", { status: 502, statusText: "Bad Gateway" })) as typeof globalThis.fetch;
+    await expect(
+      runDispatchStrategyExperiment({ strategy_id: "strat-1" }, { fetchImpl }),
+    ).rejects.toMatchObject({
+      name: "BffRequestError",
+      detail: { code: "bff_502", status: 502, message: "Bad Gateway" },
+    });
+  });
+
+  it("teaches the catalogue kinds and the from_ts/to_ts window keys", async () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-dispatch-strategy-experiment",
+    });
+    plugin.register(captured.api);
+    const description = String((captured.tools[0] as { description?: unknown }).description ?? "");
+    for (const kind of [
+      "vbt_backtest",
+      "vbt_prop_sim",
+      "vbt_walkforward",
+      "nautilus_backtest",
+      "nautilus_prop_sim",
+      "nautilus_walkforward",
+      "nautilus_prop_walkforward",
+      "stage_b_bundle_run",
+    ]) {
+      expect(description).toContain(kind);
+    }
+    expect(description).toContain("from_ts");
+    expect(description).toContain("to_ts");
+  });
 });

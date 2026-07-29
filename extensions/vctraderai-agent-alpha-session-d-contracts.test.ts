@@ -1,3 +1,9 @@
+/// <reference types="vite/client" />
+// `import.meta.glob` is a Vite/Vitest primitive, not a TypeScript one. The
+// extensions test project does not pull in vite/client globally, so without
+// this reference tsgo reports
+//   TS2339: Property 'glob' does not exist on type 'ImportMeta'
+// which is the whole of the check-test-types failure on the release line.
 import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 

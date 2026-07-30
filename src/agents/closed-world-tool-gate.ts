@@ -54,11 +54,7 @@ function parseSnapshot(raw: string | undefined): Set<string> | null {
 }
 
 function resolveMode(raw: string | undefined): ClosedWorldMode {
-  return String(raw || "")
-    .trim()
-    .toLowerCase() === "enforce"
-    ? "enforce"
-    : "report";
+  return (raw || "").trim().toLowerCase() === "enforce" ? "enforce" : "report";
 }
 
 // Process-lifetime dedup so a per-turn call does not spam identical lines.

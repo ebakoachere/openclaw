@@ -104,7 +104,10 @@ export type EmbeddedAgentSubscribeState = {
   suppressBlockChunks: boolean;
   lastReasoningSent?: string;
   pendingAssistantUsage?: NormalizedUsage;
+  pendingAssistantProviderUsage?: unknown;
   assistantUsageCommitted: boolean;
+  /** One raw provider-usage snapshot per completed assistant model call. */
+  providerUsageSnapshots: unknown[];
 
   compactionInFlight: boolean;
   lastCompactionTokensAfter?: number;
@@ -207,6 +210,7 @@ export type EmbeddedAgentSubscribeContext = {
   maybeResolveCompactionWait: () => void;
   recordAssistantUsage: (usage: unknown) => void;
   commitAssistantUsage: () => void;
+  getProviderUsageSnapshots: () => unknown[];
   incrementCompactionCount: () => void;
   noteCompactionTokensAfter: (value: unknown) => void;
   getUsageTotals: () => NormalizedUsage | undefined;

@@ -775,7 +775,7 @@ export function handleMessageEnd(
   const suppressVisibleAssistantOutput = shouldSuppressAssistantVisibleOutput(assistantMessage);
   const suppressDeterministicApprovalOutput = shouldSuppressDeterministicApprovalOutput(ctx.state);
   ctx.noteLastAssistant(assistantMessage);
-  ctx.recordAssistantUsage((assistantMessage as { usage?: unknown }).usage);
+  ctx.recordAssistantUsage(assistantMessage);
   ctx.commitAssistantUsage();
   if (suppressVisibleAssistantOutput) {
     return;

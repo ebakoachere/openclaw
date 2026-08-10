@@ -195,7 +195,9 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
     suppressBlockChunks: false, // Avoid late chunk inserts after final text merge.
     lastReasoningSent: undefined,
     pendingAssistantUsage: undefined,
+    pendingAssistantProviderUsage: undefined,
     assistantUsageCommitted: false,
+    providerUsageSnapshots: [],
     compactionInFlight: false,
     lastCompactionTokensAfter: undefined,
     pendingCompactionRetry: 0,
@@ -333,6 +335,7 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
     state.reasoningStreamOpen = false;
     state.suppressBlockChunks = false;
     state.pendingAssistantUsage = undefined;
+    state.pendingAssistantProviderUsage = undefined;
     state.assistantUsageCommitted = false;
     state.assistantMessageIndex += 1;
     state.lastAssistantStreamItemId = undefined;
@@ -525,6 +528,9 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
       usage.total ??
       (usage.input ?? 0) + (usage.output ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
     usageTotals.total += usageTotal;
+    if (state.pendingAssistantProviderUsage) {
+      state.providerUsageSnapshots.push(state.pendingAssistantProviderUsage);
+    }
     state.assistantUsageCommitted = true;
   };
   const recordAssistantUsage = (usageLike: unknown) => {
@@ -536,6 +542,23 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
       return;
     }
     state.pendingAssistantUsage = usage;
+    const record =
+      usageLike && typeof usageLike === "object" && !Array.isArray(usageLike)
+        ? (usageLike as Record<string, unknown>)
+        : undefined;
+    const message =
+      record?.message && typeof record.message === "object" && !Array.isArray(record.message)
+        ? (record.message as Record<string, unknown>)
+        : undefined;
+    state.pendingAssistantProviderUsage = {
+      ...(typeof (record?.provider ?? message?.provider) === "string"
+        ? { provider: record?.provider ?? message?.provider }
+        : {}),
+      ...(typeof (record?.model ?? message?.model) === "string"
+        ? { model: record?.model ?? message?.model }
+        : {}),
+      usage: record?.usage ?? message?.usage ?? usageLike,
+    };
   };
   const getUsageTotals = () => {
     const hasUsage =
@@ -559,6 +582,7 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
       total: usageTotals.total || derivedTotal || undefined,
     };
   };
+  const getProviderUsageSnapshots = () => [...state.providerUsageSnapshots];
   const incrementCompactionCount = () => {
     compactionCount += 1;
   };
@@ -1166,6 +1190,7 @@ export function subscribeEmbeddedAgentSession(params: SubscribeEmbeddedAgentSess
     maybeResolveCompactionWait,
     recordAssistantUsage,
     commitAssistantUsage,
+    getProviderUsageSnapshots,
     incrementCompactionCount,
     noteCompactionTokensAfter,
     getUsageTotals,

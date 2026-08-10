@@ -104,6 +104,8 @@ type MutableAssistantOutput = {
     cacheWrite: number;
     totalTokens: number;
     cost: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
+    providerRaw?: Record<string, unknown>;
+    providerRequestId?: string;
   };
   stopReason: string;
   timestamp: number;
@@ -1088,6 +1090,8 @@ export function createAnthropicMessagesTransportStreamFn(): StreamFn {
               | undefined;
             const usage = message?.usage ?? {};
             output.responseId = typeof message?.id === "string" ? message.id : undefined;
+            output.usage.providerRequestId = output.responseId;
+            output.usage.providerRaw = { ...usage };
             output.usage.input = typeof usage.input_tokens === "number" ? usage.input_tokens : 0;
             output.usage.output = typeof usage.output_tokens === "number" ? usage.output_tokens : 0;
             output.usage.cacheRead =
@@ -1368,6 +1372,12 @@ export function createAnthropicMessagesTransportStreamFn(): StreamFn {
             }
             if (typeof usage?.cache_creation_input_tokens === "number") {
               output.usage.cacheWrite = usage.cache_creation_input_tokens;
+            }
+            if (usage) {
+              output.usage.providerRaw = {
+                ...(output.usage.providerRaw ?? {}),
+                ...usage,
+              };
             }
             output.usage.totalTokens =
               output.usage.input +

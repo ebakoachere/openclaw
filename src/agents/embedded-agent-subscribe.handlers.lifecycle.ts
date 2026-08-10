@@ -17,6 +17,7 @@ import {
 import type { EmbeddedAgentSubscribeContext } from "./embedded-agent-subscribe.handlers.types.js";
 import { isPromiseLike } from "./embedded-agent-subscribe.promise.js";
 import { isAssistantMessage } from "./embedded-agent-utils.js";
+import { aggregateProviderUsageEnvelopeV2 } from "./provider-usage-envelope.js";
 
 export {
   handleCompactionEnd,
@@ -42,6 +43,24 @@ export function handleAgentStart(ctx: EmbeddedAgentSubscribeContext) {
 export function handleAgentEnd(ctx: EmbeddedAgentSubscribeContext): void | Promise<void> {
   const lastAssistant = ctx.state.lastAssistant;
   const isError = isAssistantMessage(lastAssistant) && lastAssistant.stopReason === "error";
+  // The last assistant message records the model/provider that actually served
+  // the turn — i.e. after any session `/model` override and any failover
+  // fallback candidate. Surface it on the terminal so subscribers know what
+  // really generated the reply (or failed).
+  const servedAssistant = isAssistantMessage(lastAssistant) ? lastAssistant : undefined;
+  const servedModel =
+    typeof servedAssistant?.model === "string" && servedAssistant.model.trim()
+      ? servedAssistant.model
+      : undefined;
+  const servedProvider =
+    typeof servedAssistant?.provider === "string" && servedAssistant.provider.trim()
+      ? servedAssistant.provider
+      : undefined;
+  const providerUsage = aggregateProviderUsageEnvelopeV2({
+    provider: servedProvider,
+    model: servedModel,
+    usages: ctx.getProviderUsageSnapshots(),
+  });
   let lifecycleErrorText: string | undefined;
   const hasAssistantVisibleText =
     Array.isArray(ctx.state.assistantTexts) &&
@@ -119,6 +138,9 @@ export function handleAgentEnd(ctx: EmbeddedAgentSubscribeContext): void | Promi
   const emitLifecycleTerminal = () => {
     const terminalMeta = {
       ...(ctx.state.terminalStopReason ? { stopReason: ctx.state.terminalStopReason } : {}),
+      ...(servedModel ? { model: servedModel } : {}),
+      ...(servedProvider ? { provider: servedProvider } : {}),
+      ...(providerUsage ? { providerUsage } : {}),
       ...(ctx.state.yielded === true ? { yielded: true } : {}),
       ...(ctx.state.timeoutPhase ? { timeoutPhase: ctx.state.timeoutPhase } : {}),
       ...(typeof ctx.state.providerStarted === "boolean"

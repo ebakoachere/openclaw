@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-list-live-orders",
+  "name": "VC Trader AI List Live Orders",
+  "description": "Read-only workspace-scoped broker-order verification tool. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). READ_ONLY per ADR 0078.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "list_live_orders"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

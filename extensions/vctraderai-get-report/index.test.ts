@@ -54,6 +54,22 @@ describe("vctraderai-get-report", () => {
     expect(request?.headers.get("x-openclaw-thread")).toBe("thread-42");
   });
 
+  it("normalises an uppercased uuid instead of tripping its own egress guard", async () => {
+    // The allowlist regex admits lowercase hex only, so an uppercased echo of a
+    // real id would fail as an opaque BffEgressViolation rather than working.
+    const urls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+      return new Response(JSON.stringify({ data: {} }), { status: 200 });
+    }) as typeof globalThis.fetch;
+
+    await runGetReport({ report_id: REPORT_ID.toUpperCase() }, { fetchImpl });
+
+    expect(new URL(urls[0] ?? "").pathname).toBe(
+      `/api/v1/workspaces/${WORKSPACE_ID}/reports/${REPORT_ID}`,
+    );
+  });
+
   it("refuses an id that is not a report uuid before opening a request", async () => {
     await expect(runGetReport({ report_id: "latest" })).rejects.toThrow("report UUID");
   });

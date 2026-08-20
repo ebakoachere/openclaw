@@ -41,7 +41,11 @@ export function assertReportId(toolName: string, reportId: unknown): string {
       `${toolName} requires report_id to be a report UUID as returned by list_reports or publish_report`,
     );
   }
-  return value;
+  // Lowercased because the egress allowlist admits lowercase hex only. A uuid
+  // is case-insensitive and Postgres emits it lowercase, so an uppercased echo
+  // of a real id would otherwise fail as an opaque egress violation instead of
+  // working.
+  return value.toLowerCase();
 }
 
 /** One full report: the card metadata plus its complete block body. */

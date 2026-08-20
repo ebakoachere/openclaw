@@ -1,13 +1,13 @@
 import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import plugin, {
-  runListTradersForDeployment,
-  LIST_TRADERS_FOR_DEPLOYMENT_TOOL_NAME,
+  runListPortfoliosForDeployment,
+  LIST_PORTFOLIOS_FOR_DEPLOYMENT_TOOL_NAME,
 } from "./index.js";
 
 const WORKSPACE_ID = "11111111-2222-3333-4444-555555555555";
 
-describe("vctraderai-list-traders-for-deployment", () => {
+describe("vctraderai-list-portfolios-for-deployment", () => {
   const originalWorkspace = process.env.PFM_WORKSPACE_ID;
   const originalAgentToken = process.env.PFM_AGENT_TOKEN;
   beforeEach(() => {
@@ -27,15 +27,15 @@ describe("vctraderai-list-traders-for-deployment", () => {
     }
   });
 
-  it("registers the list_traders_for_deployment tool with the plugin api", () => {
+  it("registers the list_portfolios_for_deployment tool with the plugin api", () => {
     const captured = createCapturedPluginRegistration({
-      id: "vctraderai-list-traders-for-deployment",
+      id: "vctraderai-list-portfolios-for-deployment",
     });
     plugin.register(captured.api);
     expect(captured.tools).toHaveLength(1);
     expect(captured.tools[0]).toMatchObject({
-      name: LIST_TRADERS_FOR_DEPLOYMENT_TOOL_NAME,
-      label: "List Traders For Deployment",
+      name: LIST_PORTFOLIOS_FOR_DEPLOYMENT_TOOL_NAME,
+      label: "List Portfolios For Deployment",
     });
   });
 
@@ -51,9 +51,9 @@ describe("vctraderai-list-traders-for-deployment", () => {
         headers: { "content-type": "application/json" },
       });
     }) as typeof globalThis.fetch;
-    await runListTradersForDeployment({}, { fetchImpl });
+    await runListPortfoliosForDeployment({}, { fetchImpl });
     expect(new URL(capturedUrl).pathname).toBe(
-      `/api/v1/workspaces/${WORKSPACE_ID}/openclaw/deployment/traders`,
+      `/api/v1/workspaces/${WORKSPACE_ID}/openclaw/deployment/portfolios`,
     );
     expect(capturedAuth).toBe("Bearer agent-token-001");
   });
@@ -64,7 +64,7 @@ describe("vctraderai-list-traders-for-deployment", () => {
         status: 403,
         statusText: "Forbidden",
       })) as typeof globalThis.fetch;
-    await expect(runListTradersForDeployment({}, { fetchImpl })).rejects.toMatchObject({
+    await expect(runListPortfoliosForDeployment({}, { fetchImpl })).rejects.toMatchObject({
       name: "BffRequestError",
       detail: { code: "bff_403", status: 403 },
     });

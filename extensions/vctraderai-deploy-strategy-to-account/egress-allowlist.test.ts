@@ -17,10 +17,16 @@ describe("vctraderai-deploy-strategy-to-account egress allowlist", () => {
     process.env.OPENCLAW_GATEWAY_TOKEN = "gateway-token-001";
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
-    if (originalToken === undefined) delete process.env.OPENCLAW_GATEWAY_TOKEN;
-    else process.env.OPENCLAW_GATEWAY_TOKEN = originalToken;
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+    if (originalToken === undefined) {
+      delete process.env.OPENCLAW_GATEWAY_TOKEN;
+    } else {
+      process.env.OPENCLAW_GATEWAY_TOKEN = originalToken;
+    }
   });
 
   it("reads the SHARED gateway token env, not the per-workspace owner token", () => {

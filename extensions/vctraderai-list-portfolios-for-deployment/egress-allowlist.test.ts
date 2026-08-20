@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runListTradersForDeployment } from "./index.js";
+import { runListPortfoliosForDeployment } from "./index.js";
 import {
   BffEgressViolation,
   createBffFetch,
@@ -9,7 +9,7 @@ import {
 
 const WORKSPACE_ID = "11111111-2222-3333-4444-555555555555";
 
-describe("vctraderai-list-traders-for-deployment egress allowlist", () => {
+describe("vctraderai-list-portfolios-for-deployment egress allowlist", () => {
   const originalWorkspace = process.env.PFM_WORKSPACE_ID;
   beforeEach(() => {
     process.env.PFM_WORKSPACE_ID = WORKSPACE_ID;
@@ -32,7 +32,7 @@ describe("vctraderai-list-traders-for-deployment egress allowlist", () => {
       urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runListTradersForDeployment({}, { fetchImpl });
+    await runListPortfoliosForDeployment({}, { fetchImpl });
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
       expect(new URL(url).pathname).toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);

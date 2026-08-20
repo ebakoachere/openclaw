@@ -252,7 +252,7 @@ function resolveMeasuredPromptAnchor(messages: AgentMessage[]): MeasuredPromptAn
     if (record.role !== "assistant" || !isRecord(record.usage)) {
       continue;
     }
-    const usage = record.usage as Record<string, unknown>;
+    const usage = record.usage;
     const input = toFiniteNonNegative(usage.input);
     const output = toFiniteNonNegative(usage.output);
     if (input === undefined || output === undefined) {

@@ -157,7 +157,7 @@ export function buildAnthropicPromptCompositionRequest(params: {
     source: params.source,
   });
   let systemPreamble = systemText;
-  for (const range of [...contentRanges].sort((a, b) => b.start - a.start)) {
+  for (const range of [...contentRanges].toSorted((a, b) => b.start - a.start)) {
     systemPreamble = `${systemPreamble.slice(0, range.start)}${systemPreamble.slice(range.end)}`;
   }
 

@@ -16,10 +16,16 @@ describe("vctraderai-store-dataset egress allowlist", () => {
     process.env.PFM_AGENT_TOKEN = "agent-token-001";
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
-    if (originalToken === undefined) delete process.env.PFM_AGENT_TOKEN;
-    else process.env.PFM_AGENT_TOKEN = originalToken;
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+    if (originalToken === undefined) {
+      delete process.env.PFM_AGENT_TOKEN;
+    } else {
+      process.env.PFM_AGENT_TOKEN = originalToken;
+    }
   });
 
   it("every captured url on the happy path matches the workspace-scoped allowlist", async () => {

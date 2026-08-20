@@ -129,8 +129,23 @@ describe("tsdown config", () => {
     const hasPluginEntry = (pluginId: string) =>
       keys.some((entry) => entry.startsWith(`${bundledPluginRoot(pluginId)}/`));
 
-    expect(hasPluginEntry("amazon-bedrock")).toBe(false);
+    // vctraderai fork: amazon-bedrock is bundled here, not npm-external (see the
+    // sibling assertion below). amazon-bedrock-mantle stays external upstream-style.
     expect(hasPluginEntry("amazon-bedrock-mantle")).toBe(false);
+  });
+
+  it("keeps the bundled bedrock provider inside the root dist graph", () => {
+    // The gateway image resolves the bedrock memory-embedding provider from dist.
+    // With build.bundledDist=false it shipped source but no dist entry, so config
+    // validation reported "plugin not installed" and every memory_search failed
+    // with "Unknown memory embedding provider: bedrock". Guard the fix, not the
+    // upstream default.
+    const distGraph = requireUnifiedDistGraph();
+    const keys = entryKeys(distGraph);
+
+    expect(keys.some((entry) => entry.startsWith(`${bundledPluginRoot("amazon-bedrock")}/`))).toBe(
+      true,
+    );
   });
 
   it("keeps gateway lifecycle lazy runtime behind one stable dist entry", () => {

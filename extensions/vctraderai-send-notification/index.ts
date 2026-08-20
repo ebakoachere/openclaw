@@ -20,6 +20,14 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // stop every live call 403ing. This is that companion update; the bridge is
 // removed on the propfirm_manager side once the image carrying this plugin is
 // baked and rolled.
+//
+// The schema also declares recipient_user_id and email. Both were already
+// FORWARDED -- the top-level object is additionalProperties: true, so anything
+// the model sent went to the BFF -- and neither was DECLARED, so the model had
+// no way to discover either. A capability a model cannot see is a capability
+// that does not exist. email is new server-side too (propfirm_manager #1419):
+// until it landed, the description above promised an email this tool never
+// sent.
 
 export const SEND_NOTIFICATION_TOOL_NAME = "send_notification";
 const SEND_PATH = "/api/v1/openclaw/notifications/send";
@@ -51,6 +59,8 @@ export type SendNotificationParams = {
   body?: string;
   kind?: string;
   link_path?: string;
+  recipient_user_id?: string;
+  email?: boolean;
   attachments?: SendNotificationAttachment[];
   [key: string]: unknown;
 };
@@ -89,7 +99,8 @@ export default defineToolPlugin({
       label: "Send Notification",
       description:
         "Surface an in-page notification to the trader. This writes STRAIGHT THROUGH - there is " +
-        "no staged card and no Apply - and best-effort emails the trader if they opted in. " +
+        "no staged card and no Apply. It lands in the inbox; set email true to also send it as " +
+        "an email, which reaches the trader only if they have email notifications switched on. " +
         "Deliver a published report by attaching its id, not by pasting the report into the " +
         "body: your message is the cover note, the report is the document.",
       parameters: Type.Object(
@@ -102,6 +113,22 @@ export default defineToolPlugin({
           link_path: Type.Optional(
             Type.String({
               description: "In-app path the notification deep-links to.",
+            }),
+          ),
+          recipient_user_id: Type.Optional(
+            Type.String({
+              description:
+                "Who to notify. Defaults to the workspace owner, which is almost always right - " +
+                "pass this only when you mean someone else.",
+            }),
+          ),
+          email: Type.Optional(
+            Type.Boolean({
+              description:
+                "Also send this as an email. Default false. It reaches the trader ONLY if they " +
+                "have email notifications switched on, so it is a request and not a guarantee. " +
+                "Use it for something worth interrupting someone who is away from the app; " +
+                "leave it off for anything the inbox can hold until they look.",
             }),
           ),
           attachments: Type.Optional(

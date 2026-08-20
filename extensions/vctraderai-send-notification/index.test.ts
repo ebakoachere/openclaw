@@ -93,6 +93,75 @@ describe("vctraderai-send-notification", () => {
     expect(seen.body.attachments).toEqual([{ kind: "report", id: "rpt-42" }]);
   });
 
+  // --- declared, not merely forwarded -------------------------------------
+  //
+  // The top-level schema is additionalProperties: true, so this plugin has
+  // always PASSED THROUGH anything the model sent. That is not the same as the
+  // model being able to find it. recipient_user_id has been supported by the
+  // BFF for months and advertised nowhere; email is new (propfirm_manager
+  // #1419) and the description used to promise it unconditionally.
+
+  it("declares every parameter it forwards, so the model can find them", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const parameters = captured.tools[0].parameters as any;
+    const declared = Object.keys(parameters?.properties ?? {});
+
+    // Everything the BFF reads off the body (_send_agent_notification).
+    expect(declared).toEqual(
+      expect.arrayContaining([
+        "title",
+        "body",
+        "kind",
+        "link_path",
+        "recipient_user_id",
+        "email",
+        "attachments",
+      ]),
+    );
+    // Only the title is ever required; a bare title stays the simple case, and
+    // neither new parameter may become a thing the model must decide.
+    expect(parameters.required ?? []).toContain("title");
+    expect(parameters.required ?? []).not.toContain("recipient_user_id");
+    expect(parameters.required ?? []).not.toContain("email");
+  });
+
+  it("declares email as a boolean, because the bff refuses anything else", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const parameters = captured.tools[0].parameters as any;
+    const email = parameters?.properties?.email;
+    const type = email?.type ?? email?.anyOf?.find((s: any) => s.type)?.type;
+    expect(type).toBe("boolean");
+  });
+
+  it("does not promise an email it cannot guarantee", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const description = captured.tools[0].description;
+    // The sentence that was false for as long as it existed: this tool did not
+    // reach the email fan-out at all, and even now the trader's own opt-in
+    // decides.
+    expect(description).not.toMatch(/best-effort emails/i);
+    expect(description).toMatch(/set email true/i);
+    expect(description).toMatch(/only if/i);
+  });
+
+  it("forwards recipient_user_id and email to the bff", async () => {
+    const { fetchImpl, seen } = captureFetch();
+    await runSendNotification(
+      { title: "Drawdown breach", recipient_user_id: "usr-7", email: true } as any,
+      { fetchImpl },
+    );
+    expect(seen.body).toMatchObject({ recipient_user_id: "usr-7", email: true });
+  });
+
+  it("omits email entirely when the caller does not ask, rather than sending false", async () => {
+    const { fetchImpl, seen } = captureFetch();
+    await runSendNotification({ title: "Routine" } as any, { fetchImpl });
+    expect("email" in seen.body).toBe(false);
+  });
+
   it("surfaces a structured error on bff 403 (tool forbidden)", async () => {
     const fetchImpl = (async () =>
       new Response("forbidden", {

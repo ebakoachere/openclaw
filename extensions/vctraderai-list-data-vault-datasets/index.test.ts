@@ -12,10 +12,16 @@ describe("vctraderai-list-data-vault-datasets", () => {
     process.env.PFM_AGENT_TOKEN = "agent-token-001";
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
-    if (originalToken === undefined) delete process.env.PFM_AGENT_TOKEN;
-    else process.env.PFM_AGENT_TOKEN = originalToken;
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+    if (originalToken === undefined) {
+      delete process.env.PFM_AGENT_TOKEN;
+    } else {
+      process.env.PFM_AGENT_TOKEN = originalToken;
+    }
   });
 
   it("registers list_data_vault_datasets", () => {

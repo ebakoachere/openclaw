@@ -27,10 +27,16 @@ describe("vctraderai-deploy-strategy-to-account", () => {
     process.env.OPENCLAW_GATEWAY_TOKEN = "gateway-token-001";
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
-    if (originalToken === undefined) delete process.env.OPENCLAW_GATEWAY_TOKEN;
-    else process.env.OPENCLAW_GATEWAY_TOKEN = originalToken;
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+    if (originalToken === undefined) {
+      delete process.env.OPENCLAW_GATEWAY_TOKEN;
+    } else {
+      process.env.OPENCLAW_GATEWAY_TOKEN = originalToken;
+    }
   });
 
   it("registers deploy_strategy_to_account", () => {
@@ -180,7 +186,7 @@ describe("vctraderai-deploy-strategy-to-account", () => {
     );
 
     const body = (await request()?.json()) as { params: Record<string, unknown> };
-    expect(Object.keys(body.params).sort()).toEqual([
+    expect(Object.keys(body.params).toSorted()).toEqual([
       "account_id",
       "deployment_mode",
       "strategy_id",

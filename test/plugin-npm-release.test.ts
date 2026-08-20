@@ -236,7 +236,10 @@ describe("collectPublishablePluginPackageErrors", () => {
 
 describe("collectPublishablePluginPackages", () => {
   it("keeps publishable plugin dist trees out of the core npm package files list", () => {
-    const corePackageRuntimePluginIds = new Set(["discord"]);
+    // vctraderai fork: amazon-bedrock is a core-package runtime plugin here, not an
+    // npm-external one — its manifest sets openclaw.build.bundledDist=true so the
+    // gateway image can resolve the bedrock memory-embedding provider from dist.
+    const corePackageRuntimePluginIds = new Set(["discord", "amazon-bedrock"]);
     const rootPackage = JSON.parse(readFileSync("package.json", "utf8")) as {
       files?: unknown;
     };

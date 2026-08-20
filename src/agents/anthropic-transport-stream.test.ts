@@ -300,7 +300,7 @@ describe("anthropic transport stream", () => {
       "conversation-history",
     ]);
     for (const block of blocks) {
-      expect(Object.keys(block).sort()).toEqual([
+      expect(Object.keys(block).toSorted()).toEqual([
         "byteSize",
         "contentHash",
         "name",

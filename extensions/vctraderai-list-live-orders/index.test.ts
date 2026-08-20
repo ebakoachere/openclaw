@@ -13,10 +13,10 @@ describe("vctraderai-list-live-orders", () => {
     process.env.PFM_AGENT_TOKEN = "agent-token-001";
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
-    if (originalAgentToken === undefined) delete process.env.PFM_AGENT_TOKEN;
-    else process.env.PFM_AGENT_TOKEN = originalAgentToken;
+    if (originalWorkspace === undefined) { delete process.env.PFM_WORKSPACE_ID; }
+    else { process.env.PFM_WORKSPACE_ID = originalWorkspace; }
+    if (originalAgentToken === undefined) { delete process.env.PFM_AGENT_TOKEN; }
+    else { process.env.PFM_AGENT_TOKEN = originalAgentToken; }
   });
 
   it("registers list_live_orders with the plugin API", () => {

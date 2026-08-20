@@ -34,7 +34,7 @@ async function readBffError(response: FetchResponse): Promise<BffError> {
   } catch {
     return fallback;
   }
-  if (!raw) return fallback;
+  if (!raw) { return fallback; }
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -46,7 +46,7 @@ async function readBffError(response: FetchResponse): Promise<BffError> {
   const envelope = [asRecord(detail?.error), detail, asRecord(root?.error), root].find(
     (candidate) => typeof candidate?.message === "string" && candidate.message.length > 0,
   );
-  if (!envelope) return { ...fallback, message: raw.slice(0, MAX_ERROR_BODY_CHARS) };
+  if (!envelope) { return { ...fallback, message: raw.slice(0, MAX_ERROR_BODY_CHARS) }; }
   const suggestion = envelope.retry_suggestion;
   return {
     code: typeof envelope.code === "string" ? envelope.code : fallback.code,
@@ -93,7 +93,7 @@ function assertAllowlistedPath(path: string): void {
 function buildQueryString(query: Record<string, string | undefined> | undefined): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (typeof value === "string" && value.length > 0) params.set(key, value);
+    if (typeof value === "string" && value.length > 0) { params.set(key, value); }
   }
   const serialized = params.toString();
   return serialized ? `?${serialized}` : "";
@@ -119,7 +119,7 @@ export function createBffFetch(
       },
       signal: options.signal,
     });
-    if (!response.ok) throw new BffRequestError(await readBffError(response));
+    if (!response.ok) { throw new BffRequestError(await readBffError(response)); }
     return response.json();
   };
 }

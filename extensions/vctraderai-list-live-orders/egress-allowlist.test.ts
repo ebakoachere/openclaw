@@ -15,8 +15,8 @@ describe("vctraderai-list-live-orders egress allowlist", () => {
     process.env.PFM_WORKSPACE_ID = WORKSPACE_ID;
   });
   afterEach(() => {
-    if (originalWorkspace === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    if (originalWorkspace === undefined) { delete process.env.PFM_WORKSPACE_ID; }
+    else { process.env.PFM_WORKSPACE_ID = originalWorkspace; }
   });
 
   it("reads the headless-user owner token, never the gateway token", () => {

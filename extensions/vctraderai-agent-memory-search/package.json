@@ -1,0 +1,19 @@
+{
+  "name": "@openclaw/vctraderai-agent-memory-search",
+  "version": "2026.8.20",
+  "private": true,
+  "description": "VC Trader AI workspace-scoped read-only agent_memory_search tool.",
+  "type": "module",
+  "dependencies": {
+    "typebox": "1.1.38"
+  },
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*",
+    "openclaw": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

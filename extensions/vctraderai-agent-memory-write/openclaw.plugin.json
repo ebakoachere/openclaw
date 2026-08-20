@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-agent-memory-write",
+  "name": "VC Trader AI Agent Memory Write",
+  "description": "Workspace-scoped tool: record what the agent learned into its durable memory graph, attributed server-side from the caller's thread identity. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN) and stamps X-OpenClaw-Workspace, which this route's specialist-authority dependency requires. DIRECT_CONTROL per ADR 0078.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "agent_memory_write"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

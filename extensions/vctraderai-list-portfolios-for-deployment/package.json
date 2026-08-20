@@ -1,8 +1,8 @@
 {
-  "name": "@openclaw/vctraderai-list-traders-for-deployment",
-  "version": "2026.6.23",
+  "name": "@openclaw/vctraderai-list-portfolios-for-deployment",
+  "version": "2026.8.20",
   "private": true,
-  "description": "VC Trader AI read-only workspace-scoped list_traders_for_deployment tool.",
+  "description": "VC Trader AI read-only workspace-scoped list_portfolios_for_deployment tool.",
   "type": "module",
   "dependencies": {
     "typebox": "1.1.38"

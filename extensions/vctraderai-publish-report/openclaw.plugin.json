@@ -1,0 +1,8 @@
+{
+  "id": "vctraderai-publish-report",
+  "name": "VC Trader AI Publish Report",
+  "description": "Workspace-scoped report publish tool. Uses the PFM_AGENT_TOKEN credential at the BFF boundary; authorship is stamped server-side.",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["publish_report"] },
+  "configSchema": { "type": "object", "additionalProperties": false, "properties": {} }
+}

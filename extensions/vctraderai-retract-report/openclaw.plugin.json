@@ -1,0 +1,8 @@
+{
+  "id": "vctraderai-retract-report",
+  "name": "VC Trader AI Retract Report",
+  "description": "Workspace-scoped report retraction tool. Archives a published report with a required reason.",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["retract_report"] },
+  "configSchema": { "type": "object", "additionalProperties": false, "properties": {} }
+}

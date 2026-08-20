@@ -2279,6 +2279,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-get-report:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-get-risk-manager:
     dependencies:
       typebox:
@@ -2682,6 +2695,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-list-portfolios-for-deployment:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-list-prop-firm-challenges:
     dependencies:
       typebox:
@@ -2696,6 +2722,19 @@ importers:
         version: link:../..
 
   extensions/vctraderai-list-recent-deals:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-list-reports:
     dependencies:
       typebox:
         specifier: 1.1.38
@@ -2825,19 +2864,6 @@ importers:
         specifier: workspace:*
         version: link:../..
 
-  extensions/vctraderai-list-traders-for-deployment:
-    dependencies:
-      typebox:
-        specifier: 1.1.38
-        version: 1.1.38
-    devDependencies:
-      '@openclaw/plugin-sdk':
-        specifier: workspace:*
-        version: link:../../packages/plugin-sdk
-      openclaw:
-        specifier: workspace:*
-        version: link:../..
-
   extensions/vctraderai-list-tree:
     dependencies:
       typebox:
@@ -2942,6 +2968,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-publish-report:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-read-agent-signal:
     dependencies:
       typebox:
@@ -2982,6 +3021,32 @@ importers:
         version: link:../..
 
   extensions/vctraderai-research-fetch:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-retract-report:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-revise-report:
     dependencies:
       typebox:
         specifier: 1.1.38

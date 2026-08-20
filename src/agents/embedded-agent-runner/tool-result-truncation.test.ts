@@ -713,9 +713,9 @@ describe("aggregate truncation is byte-stable as history grows", () => {
     const render2 = truncateOversizedToolResultsInMessages(grown, 128_000, 4_000, 8_000);
 
     for (let i = 2; i < base.length; i += 1) {
-      const before = toolResultText(render1.messages[i] as AgentMessage);
-      const after = toolResultText(render2.messages[i] as AgentMessage);
-      if (before !== toolResultText(base[i] as AgentMessage)) {
+      const before = toolResultText(render1.messages[i]);
+      const after = toolResultText(render2.messages[i]);
+      if (before !== toolResultText(base[i])) {
         // This entry was truncated in render 1; growing history must not
         // change its bytes. Under the pre-fix partial-frontier behaviour the
         // frontier entry fails exactly here.
@@ -740,9 +740,9 @@ describe("aggregate truncation is byte-stable as history grows", () => {
     );
     expect(truncatedCount).toBeGreaterThan(0);
     // Newest tool result must be untouched: reduction is spent oldest-first.
-    expect(toolResultText(result[6] as AgentMessage)).toBe("e".repeat(3_000));
+    expect(toolResultText(result[6])).toBe("e".repeat(3_000));
     // Oldest is truncated to its floor.
-    expect(toolResultText(result[2] as AgentMessage)).not.toBe("a".repeat(3_000));
+    expect(toolResultText(result[2])).not.toBe("a".repeat(3_000));
   });
 
   it("is a fixpoint: re-rendering already-truncated history changes nothing", () => {

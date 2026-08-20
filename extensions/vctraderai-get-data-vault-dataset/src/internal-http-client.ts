@@ -41,7 +41,11 @@ function assertAllowlistedPath(path: string): void {
 }
 function buildQueryString(query: Record<string, string | undefined> | undefined): string {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query ?? {})) if (value) params.set(key, value);
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value) {
+      params.set(key, value);
+    }
+  }
   const serialized = params.toString();
   return serialized ? `?${serialized}` : "";
 }
@@ -52,8 +56,9 @@ export function createBffFetch(
   } = {},
 ): BffFetchFn {
   const fetchImpl = deps.fetchImpl ?? globalThis.fetch;
-  if (typeof fetchImpl !== "function")
+  if (typeof fetchImpl !== "function") {
     throw new Error("vctraderai data-vault: global fetch is not available");
+  }
   return async (path, options = {}) => {
     assertAllowlistedPath(path);
     const token = process.env.PFM_AGENT_TOKEN;
@@ -71,8 +76,9 @@ export function createBffFetch(
         signal: options.signal,
       },
     );
-    if (!response.ok)
+    if (!response.ok) {
       throw new BffRequestError(response.status, (await response.text()).slice(0, 2000));
+    }
     return response.json();
   };
 }

@@ -21,6 +21,12 @@
           - "extensions/vctraderai-store-dataset/**"
           - "extensions/vctraderai-list-data-vault-datasets/**"
           - "extensions/vctraderai-get-data-vault-dataset/**"
+"plugin: vctraderai-live-trading":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/vctraderai-list-live-positions/**"
+          - "extensions/vctraderai-list-live-fills/**"
+          - "extensions/vctraderai-list-live-orders/**"
 "channel: discord":
   - changed-files:
       - any-glob-to-any-file:

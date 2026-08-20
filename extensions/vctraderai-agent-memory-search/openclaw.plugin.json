@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-agent-memory-search",
+  "name": "VC Trader AI Agent Memory Search",
+  "description": "Read-only workspace-scoped tool: recall what this workspace's agents have learned, from the durable memory graph (free text + node type). Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). READ_ONLY per ADR 0078.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "agent_memory_search"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

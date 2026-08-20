@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-get-report",
+  "name": "VC Trader AI Get Report",
+  "description": "Reads one published report in full, including its block body. Calls the propfirm_manager BFF at GET /api/v1/workspaces/{ws}/reports/{report_id} as the workspace owner (PFM_AGENT_TOKEN, ADR 0078). READ_ONLY per core/openclaw/allowlist.py. A retracted report still resolves here and carries its retraction reason.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "get_report"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

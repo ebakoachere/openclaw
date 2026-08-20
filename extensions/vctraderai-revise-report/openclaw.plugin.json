@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-revise-report",
+  "name": "VC Trader AI Revise Report",
+  "description": "Publishes a corrected report superseding an earlier one. Calls the propfirm_manager BFF at POST /api/v1/workspaces/{ws}/reports/{report_id}/revise as the workspace owner (PFM_AGENT_TOKEN, ADR 0078). DIRECT_CONTROL per core/openclaw/allowlist.py. Nothing is edited in place: the original is preserved exactly as delivered, so an already-sent message still shows what the reader was told.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "revise_report"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

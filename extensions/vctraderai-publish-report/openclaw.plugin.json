@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-publish-report",
+  "name": "VC Trader AI Publish Report",
+  "description": "Files a structured, block-bodied report in the workspace report library. Calls the propfirm_manager BFF at POST /api/v1/workspaces/{ws}/reports as the workspace owner (PFM_AGENT_TOKEN, ADR 0078), forwarding X-OpenClaw-Thread so the BFF resolves the calling specialist as the author. DIRECT_CONTROL per core/openclaw/allowlist.py - it writes straight through, with no staged descriptor and no human Apply. Publishing does NOT deliver: send_notification with a report attachment is what puts it in front of the reader.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "publish_report"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

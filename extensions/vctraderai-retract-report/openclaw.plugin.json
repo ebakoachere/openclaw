@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-retract-report",
+  "name": "VC Trader AI Retract Report",
+  "description": "Withdraws a published report from the workspace library, with a required reason. Calls the propfirm_manager BFF at POST /api/v1/workspaces/{ws}/reports/{report_id}/retract as the workspace owner (PFM_AGENT_TOKEN, ADR 0078). DIRECT_CONTROL per core/openclaw/allowlist.py. It does NOT remove the report from any inbox message that already delivered it.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "retract_report"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

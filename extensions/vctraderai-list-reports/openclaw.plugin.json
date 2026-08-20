@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-list-reports",
+  "name": "VC Trader AI List Reports",
+  "description": "Lists the workspace's published reports, newest first, filterable by template and author. Calls the propfirm_manager BFF at GET /api/v1/workspaces/{ws}/reports as the workspace owner (PFM_AGENT_TOKEN, ADR 0078). READ_ONLY per core/openclaw/allowlist.py.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "list_reports"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

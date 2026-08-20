@@ -1,0 +1,8 @@
+{
+  "id": "vctraderai-get-report",
+  "name": "VC Trader AI Get Report",
+  "description": "Workspace-scoped single-report read (card + block body) using PFM_AGENT_TOKEN.",
+  "activation": { "onStartup": true },
+  "contracts": { "tools": ["get_report"] },
+  "configSchema": { "type": "object", "additionalProperties": false, "properties": {} }
+}

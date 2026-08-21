@@ -107,7 +107,36 @@ function isOpenAIProvider(provider?: string) {
   return normalized === "openai" || normalized === "openai-codex";
 }
 
-const MEMORY_FLUSH_ALLOWED_TOOL_NAMES = new Set(["read", "write"]);
+// The memory-flush run's ENTIRE tool surface. Everything else is stripped at the
+// filter below, so a name missing here is a tool the flush cannot call no matter
+// what the prompt asks for.
+//
+// `agent_memory_write` is here for a measured reason (2026-08-21). The flush
+// system prompt instructs the agent to "call agent_memory_write once for each
+// durable fact worth finding again later" -- and the tool was not in this set,
+// so it was filtered out of every flush run that has ever executed. The graph
+// held 0 rows against a control of 3,249 matching requests: the write route was
+// never called once, while the flush's memory FILE landed normally, because
+// `write` is here and `agent_memory_write` was not. An instruction to call a
+// tool the model has not been given is not a weak instruction; it is an
+// impossible one.
+//
+// It is the one plugin tool in an otherwise core-only set, and it earns that:
+// it writes durable memory and nothing else, through the same authenticated BFF
+// route as its read-only sibling, which is exactly the work a memory flush is
+// for. Adding anything wider re-opens what this set exists to close -- a
+// compaction-triggered run is not a turn, and must not be able to place an
+// order, message a human, or touch the filesystem outside the memory file.
+const MEMORY_FLUSH_ALLOWED_TOOL_NAMES = new Set(["read", "write", "agent_memory_write"]);
+
+/** Whether a tool survives into a memory-flush run.
+ *
+ * Exported so its test drives the SAME predicate the construction path calls,
+ * rather than a second copy of the list that can silently disagree with it.
+ */
+export function isMemoryFlushAllowedToolName(toolName: string): boolean {
+  return MEMORY_FLUSH_ALLOWED_TOOL_NAMES.has(toolName);
+}
 
 type GuardContainerMount = {
   containerRoot: string;
@@ -989,7 +1018,7 @@ export function createOpenClawCodingTools(options?: {
   let memoryFlushWriteTool: AnyAgentTool | undefined;
   if (isMemoryFlushRun && memoryFlushWritePath) {
     for (const tool of tools) {
-      if (!MEMORY_FLUSH_ALLOWED_TOOL_NAMES.has(tool.name)) {
+      if (!isMemoryFlushAllowedToolName(tool.name)) {
         continue;
       }
       if (tool.name === "write") {
@@ -1010,7 +1039,7 @@ export function createOpenClawCodingTools(options?: {
   }
   const unavailableCoreToolReason =
     isMemoryFlushRun && memoryFlushWritePath
-      ? "memory-triggered compaction runs expose only read and append-only write"
+      ? "memory-triggered compaction runs expose only read, append-only write and agent_memory_write"
       : undefined;
   const toolsForMessageProvider = filterToolsByMessageProvider(
     toolsForMemoryFlush,

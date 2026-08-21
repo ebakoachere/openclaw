@@ -24,6 +24,19 @@ import type { AnyAgentTool } from "./agent-tools.types.js";
 // file. Every containment assertion is made against the FILESYSTEM, because a
 // return value that says "appended to X" is exactly what a broken redirect
 // would also say.
+/** The first content block's text, asserting it IS a text block.
+ *
+ * `content` is `Array<ImageContent | TextContent>`, so `.text` needs narrowing.
+ * Narrow with an assertion rather than a cast: if the tool ever returns an
+ * image block first, this fails loudly instead of silently comparing
+ * `undefined` and passing a `toContain` that never ran against real text.
+ */
+const firstText = (result: { content: ReadonlyArray<{ type: string; text?: string }> }): string => {
+  const block = result.content[0];
+  expect(block?.type).toBe("text");
+  return block?.text ?? "";
+};
+
 describe("memory flush write wrapper: path argument", () => {
   const TODAY_RELATIVE = "memory/2026-08-21.md";
 
@@ -104,7 +117,7 @@ describe("memory flush write wrapper: path argument", () => {
       // real destination and the path it asked for. Without this the model
       // believes it wrote memory/2026-08-20.md and may "correct" itself by
       // writing the same content again.
-      const text = result.content[0]?.text ?? "";
+      const text = firstText(result);
       expect(text).toContain(TODAY_RELATIVE);
       expect(text).toContain(yesterdayRelative);
       expect(result.details).toMatchObject({

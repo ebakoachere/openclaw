@@ -26,6 +26,21 @@ describe("FS tools with workspaceOnly=false", () => {
   let workspaceDir: string;
   let outsideFile: string;
 
+  /** The first content block's text, asserting it IS a text block.
+   *
+   * `content` is `Array<ImageContent | TextContent>`, so `.text` needs narrowing.
+   * Narrow with an assertion rather than a cast: if the tool ever returns an
+   * image block first, this fails loudly instead of silently comparing
+   * `undefined` and passing a `toContain` that never ran against real text.
+   */
+  const firstText = (result: {
+    content: ReadonlyArray<{ type: string; text?: string }>;
+  }): string => {
+    const block = result.content[0];
+    expect(block?.type).toBe("text");
+    return block?.text ?? "";
+  };
+
   const hasToolError = (result: { content: Array<{ type: string; text?: string }> }) =>
     result.content.some((content) => {
       if (content.type !== "text") {
@@ -274,8 +289,8 @@ describe("FS tools with workspaceOnly=false", () => {
     expect(hasToolError(redirected)).toBe(false);
     // The model is TOLD where the bytes went; a silent redirect would leave it
     // believing it had written the file it named.
-    expect(redirected.content[0]?.text).toContain("Appended content to memory/2026-03-07.md.");
-    expect(redirected.content[0]?.text).toContain(outsideFile);
+    expect(firstText(redirected)).toContain("Appended content to memory/2026-03-07.md.");
+    expect(firstText(redirected)).toContain(outsideFile);
     expect(redirected.details).toMatchObject({
       path: "memory/2026-03-07.md",
       appendOnly: true,

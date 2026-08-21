@@ -621,6 +621,36 @@ async function appendMemoryFlushContent(params: {
   await fs.writeFile(params.absolutePath, next, "utf-8");
 }
 
+// The memory-flush write tool is a SINGLE-TARGET APPENDER, not a filesystem.
+//
+// THE INVARIANT, and it is the whole safety story: the bytes below are appended
+// to a path derived entirely from `options` -- `options.root`,
+// `options.relativePath`, `allowedAbsolutePath`. The model's `path` argument is
+// never forwarded to `appendMemoryFlushContent`, never joined, never resolved
+// into a write target. The tool is PHYSICALLY INCAPABLE of writing anywhere
+// else, whatever the model names. Do not reintroduce a params-derived write
+// target here; every guarantee in this function rests on that one property.
+//
+// WHY THE PATH CHECK WAS REMOVED (2026-08-21). This used to compare the model's
+// resolved `path` against `allowedAbsolutePath` and THROW on a mismatch. That
+// check protected nothing -- the mismatching path was already never used -- and
+// it cost the entire flush. Agent Alpha went silent at 07:11:16Z today:
+//
+//   [tools] write failed: Memory flush writes are restricted to
+//   memory/2026-08-21.md; use that path only.
+//   raw_params={"content":"\n## Heartbeat Status Check (2026-08-20 ~23:12 UTC)...
+//
+// The server derives TODAY's UTC date. The model names the date of the CONTENT
+// it is summarising -- which, on any flush that runs after midnight UTC about a
+// session that ran before it, is YESTERDAY. So the one tool call in the flush
+// threw, the flush produced nothing, and a whole session's durable memory was
+// lost to a guard whose only possible effect was to reject a call it would have
+// executed safely.
+//
+// The rule now is: accept whatever path the model names, append to the allowed
+// file exactly as before, and NAME THE REAL DESTINATION in the result so the
+// model is not misled about what it just did (a silent redirect would leave it
+// believing it had written memory/2026-08-20.md).
 export function wrapToolMemoryFlushAppendOnlyWrite(
   tool: AnyAgentTool,
   options: MemoryFlushAppendOnlyWriteOptions,
@@ -628,7 +658,7 @@ export function wrapToolMemoryFlushAppendOnlyWrite(
   const allowedAbsolutePath = path.resolve(options.root, options.relativePath);
   return {
     ...tool,
-    description: `${tool.description} During memory flush, this tool may only append to ${options.relativePath}.`,
+    description: `${tool.description} During memory flush, this tool always appends to ${options.relativePath}; the path argument is ignored and any content you send lands in that file.`,
     execute: async (toolCallId, args, signal, onUpdate) => {
       const record = getToolParamsRecord(args);
       assertRequiredParams(record, REQUIRED_PARAM_GROUPS.write, tool.name);
@@ -639,16 +669,15 @@ export function wrapToolMemoryFlushAppendOnlyWrite(
         return tool.execute(toolCallId, args, signal, onUpdate);
       }
 
-      const resolvedPath = resolveToolPathAgainstWorkspaceRoot({
+      // Read ONLY to decide what to tell the model. `resolveToolPathAgainstWorkspaceRoot`
+      // is pure path arithmetic (no fs, no throw), and its result is deliberately
+      // not passed to the writer below.
+      const requestedAbsolutePath = resolveToolPathAgainstWorkspaceRoot({
         filePath,
         root: options.root,
         containerWorkdir: options.containerWorkdir,
       });
-      if (resolvedPath !== allowedAbsolutePath) {
-        throw new Error(
-          `Memory flush writes are restricted to ${options.relativePath}; use that path only.`,
-        );
-      }
+      const redirected = requestedAbsolutePath !== allowedAbsolutePath;
 
       await appendMemoryFlushContent({
         absolutePath: allowedAbsolutePath,
@@ -658,11 +687,15 @@ export function wrapToolMemoryFlushAppendOnlyWrite(
         sandbox: options.sandbox,
         signal,
       });
+      const text = redirected
+        ? `Appended content to ${options.relativePath}. Note: you asked for ${filePath}, but memory flush writes always go to ${options.relativePath} -- nothing was written to ${filePath}.`
+        : `Appended content to ${options.relativePath}.`;
       return {
-        content: [{ type: "text", text: `Appended content to ${options.relativePath}.` }],
+        content: [{ type: "text", text }],
         details: {
           path: options.relativePath,
           appendOnly: true,
+          ...(redirected ? { requestedPath: filePath, redirected: true } : {}),
         },
       };
     },

@@ -93,13 +93,27 @@ describe("runEmbeddedAttempt memory flush tool forwarding", () => {
         appendOnly: true,
       });
       await expect(fs.readFile(memoryFile, "utf-8")).resolves.toBe("seed\nnew durable note");
-      await expect(
-        wrapped.execute("call-memory-flush-deny", {
-          path: "memory/other-day.md",
-          content: "wrong target",
-        }),
-      ).rejects.toThrow(
-        `Memory flush writes are restricted to ${MEMORY_RELATIVE_PATH}; use that path only.`,
+
+      // WAS: this asserted that naming a different day THREW. It no longer
+      // does, and the rejection was the defect -- the wrapper's write target
+      // has always come from its options, so refusing the call protected
+      // nothing and silently cost the flush its only tool call. What the
+      // wrapper is still required to do is keep the OTHER day's file from
+      // existing at all.
+      const otherDayRelative = "memory/other-day.md";
+      const redirect = await wrapped.execute("call-memory-flush-other-day", {
+        path: otherDayRelative,
+        content: "wrong target",
+      });
+      expect(redirect.details).toMatchObject({
+        path: MEMORY_RELATIVE_PATH,
+        appendOnly: true,
+        redirected: true,
+        requestedPath: otherDayRelative,
+      });
+      await expect(fs.stat(path.join(workspaceDir, otherDayRelative))).rejects.toThrow();
+      await expect(fs.readFile(memoryFile, "utf-8")).resolves.toBe(
+        "seed\nnew durable note\nwrong target",
       );
       expect(fallbackWrite).not.toHaveBeenCalled();
     } finally {

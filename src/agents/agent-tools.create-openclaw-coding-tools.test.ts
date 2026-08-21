@@ -1329,13 +1329,18 @@ describe("createOpenClawCodingTools", () => {
       });
       await expect(fs.readFile(memoryFile, "utf8")).resolves.toBe("seed\ndurable note");
 
-      await expect(
-        writeExecute("tool-memory-flush-escape", {
-          path: "SOUL.md",
-          content: "pwned",
-        }),
-      ).rejects.toThrow(/restricted to/);
+      // WAS: `.rejects.toThrow(/restricted to/)`. The throw is gone, and it was
+      // the wrong guarantee to assert -- the wrapper never used the model's
+      // path as a write target, so the refusal protected nothing while
+      // destroying the flush whenever the model named a plausible-but-different
+      // file. The guarantee that MATTERS is unchanged and is what is asserted
+      // here: SOUL.md is not created. The bytes go to the memory file.
+      await writeExecute("tool-memory-flush-escape", {
+        path: "SOUL.md",
+        content: "pwned",
+      });
       await expect(fs.stat(path.join(workspaceDir, "SOUL.md"))).rejects.toThrow();
+      await expect(fs.readFile(memoryFile, "utf8")).resolves.toBe("seed\ndurable note\npwned");
     } finally {
       await fs.rm(workspaceDir, { recursive: true, force: true });
     }

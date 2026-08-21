@@ -232,7 +232,17 @@ describe("FS tools with workspaceOnly=false", () => {
     ).rejects.toThrow(/Path escapes (workspace|sandbox) root/);
   });
 
-  it("restricts memory-triggered writes to append-only canonical memory files", async () => {
+  // WAS: "restricts memory-triggered writes to append-only canonical memory
+  // files", and it asserted that naming any other path THREW. That rejection
+  // was wrong -- see the block comment on wrapToolMemoryFlushAppendOnlyWrite.
+  // The write target was already derived from the wrapper's options and never
+  // from the params, so throwing bought no safety at all and cost the whole
+  // flush the moment the model named yesterday's date. The behaviour the test
+  // must pin is the one that actually protects the file: an out-of-workspace
+  // ABSOLUTE path is accepted, appended to the canonical memory file, and
+  // written NOWHERE ELSE -- asserted against the filesystem, not the return
+  // value.
+  it("funnels every memory-triggered write into the canonical memory file", async () => {
     const allowedRelativePath = "memory/2026-03-07.md";
     const allowedAbsolutePath = path.join(workspaceDir, allowedRelativePath);
     await fs.mkdir(path.dirname(allowedAbsolutePath), { recursive: true });
@@ -249,18 +259,41 @@ describe("FS tools with workspaceOnly=false", () => {
     const writeTool = requireTool(tools, "write");
     expect(tools.map((tool) => tool.name).toSorted()).toEqual(["read", "write"]);
 
-    await expect(
-      writeTool.execute("test-call-memory-deny", {
-        path: outsideFile,
-        content: "should not write here",
-      }),
-    ).rejects.toThrow(/Memory flush writes are restricted to memory\/2026-03-07\.md/);
+    // POSITIVE CONTROL for the filesystem assertion below: prove `outsideFile`
+    // is a path this process really could have written, so "it does not exist"
+    // means the tool declined to create it rather than that the write was
+    // impossible anyway.
+    await fs.writeFile(outsideFile, "control", "utf-8");
+    await expect(fs.readFile(outsideFile, "utf-8")).resolves.toBe("control");
+    await fs.rm(outsideFile, { force: true });
+
+    const redirected = await writeTool.execute("test-call-memory-outside-path", {
+      path: outsideFile,
+      content: "lands in the memory file anyway",
+    });
+    expect(hasToolError(redirected)).toBe(false);
+    // The model is TOLD where the bytes went; a silent redirect would leave it
+    // believing it had written the file it named.
+    expect(redirected.content[0]?.text).toContain("Appended content to memory/2026-03-07.md.");
+    expect(redirected.content[0]?.text).toContain(outsideFile);
+    expect(redirected.details).toMatchObject({
+      path: "memory/2026-03-07.md",
+      appendOnly: true,
+      redirected: true,
+      requestedPath: outsideFile,
+    });
+    // THE FILESYSTEM, not the return value.
+    await expect(fs.stat(outsideFile)).rejects.toThrow();
+    await expect(fs.readFile(allowedAbsolutePath, "utf-8")).resolves.toBe(
+      "seed\nlands in the memory file anyway",
+    );
 
     const result = await writeTool.execute("test-call-memory-append", {
       path: allowedRelativePath,
       content: "new note",
     });
     expect(hasToolError(result)).toBe(false);
+    // The happy path is byte-for-byte unchanged: no redirect fields, same text.
     expect(result).toStrictEqual({
       content: [{ type: "text", text: "Appended content to memory/2026-03-07.md." }],
       details: {
@@ -268,6 +301,8 @@ describe("FS tools with workspaceOnly=false", () => {
         appendOnly: true,
       },
     });
-    await expect(fs.readFile(allowedAbsolutePath, "utf-8")).resolves.toBe("seed\nnew note");
+    await expect(fs.readFile(allowedAbsolutePath, "utf-8")).resolves.toBe(
+      "seed\nlands in the memory file anyway\nnew note",
+    );
   });
 });

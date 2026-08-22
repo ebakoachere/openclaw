@@ -88,7 +88,7 @@ export default defineToolPlugin({
       name: DISPATCH_STRATEGY_EXPERIMENT_TOOL_NAME,
       label: "Dispatch Strategy Experiment",
       description:
-        'Propose a strategy-first experiment (backtest / prop-sim / walkforward) launch against a registered strategy version. This STAGES a proposal for the human to review + Apply in the chat - it does NOT dispatch directly. PROPOSE_ONLY per ADR 0078. Provide strategy_id (or strategy_version_id) and experiment_kind. experiment_kind MUST be one of these six DISPATCHABLE catalogue values: vbt_backtest, vbt_walkforward, nautilus_backtest, nautilus_walkforward, nautilus_prop_sim, nautilus_prop_walkforward - a bare "backtest" or "walkforward" is NOT a kind. The 8-kind catalogue also lists TWO kinds that are NON-DISPATCHABLE in V2 and are rejected with a 422 before anything is staged, so never propose them: stage_b_bundle_run (DEFERRED TO V3) and vbt_prop_sim (BFF-stubbed at v1.0, engine ships at v1.1 - use nautilus_prop_sim instead). Of the six, only vbt_backtest, vbt_walkforward, nautilus_backtest and nautilus_walkforward reach the real engine; nautilus_prop_sim and nautilus_prop_walkforward are accepted but PARK at state "deferred_pending" with an empty result envelope, so never promise the user metrics from those two. config MUST carry the run window using exactly the keys instrument, from_ts and to_ts (the catalogue declares a date such as 2026-02-01; a full ISO-8601 timestamp also works). The two dispatchable prop kinds (nautilus_prop_sim, nautilus_prop_walkforward) additionally require config.rule_overlay, one of "prop_firm" or "standard". When the launch stems from a view you emitted with emit_specialist_signal, ALSO pass origin_signal_id set to that signal\'s id so the learning loop can bind the run\'s outcome to your proposal.',
+        'Propose a strategy-first experiment launch against a registered strategy version. This STAGES a proposal the human reviews and Applies in the chat - it never dispatches directly (PROPOSE_ONLY per ADR 0078). Provide strategy_id (or strategy_version_id) plus experiment_kind. SIX catalogue kinds dispatch for real and return real engine metrics: vbt_backtest, vbt_walkforward, vbt_prop_sim, nautilus_backtest, nautilus_walkforward, nautilus_prop_sim. TWO are refused 422 before anything is staged, so never propose them: nautilus_prop_walkforward (rolling prop windows, unproven) and stage_b_bundle_run (deferred to V3) - if the user asks for either, say it is in build. Bare "backtest" / "walkforward" are legacy aliases, not kinds. The vbt_ / nautilus_ prefix must match the strategy\'s runtime_tag (a dual strategy satisfies both; call get_strategy if unsure). config ALWAYS requires instrument, from_ts and to_ts. The prop kinds (vbt_prop_sim, nautilus_prop_sim) ALSO require rule_overlay: "prop_firm" simulates a named firm challenge and then additionally requires prop_firm_variant_id and prop_account_size - take both from ONE list_prop_firm_challenges row, whose rule_set_id IS the variant id and whose account_size is the size; neither is defaulted, because a guessed size resolves to a real-looking spec for an account the firm does not sell. "standard" enforces no firm rules. When the launch follows a view you emitted with emit_specialist_signal, pass origin_signal_id so the learning loop can bind the run\'s outcome to your proposal.',
       parameters: Type.Object(
         {
           strategy_id: Type.Optional(
@@ -100,8 +100,8 @@ export default defineToolPlugin({
           experiment_kind: Type.Optional(
             Type.String({
               description:
-                'One of the six dispatchable catalogue kinds: vbt_backtest, vbt_walkforward, nautilus_backtest, nautilus_walkforward, nautilus_prop_sim, nautilus_prop_walkforward. Two further catalogue kinds are non-dispatchable in V2 and ALWAYS 422: stage_b_bundle_run (DEFERRED TO V3) and vbt_prop_sim (BFF-stubbed at v1.0). Bare "backtest" / "walkforward" are legacy aliases and may be rejected.',
-              examples: ["vbt_backtest", "nautilus_walkforward"],
+                'One of the six kinds that dispatch for real: vbt_backtest, vbt_walkforward, vbt_prop_sim, nautilus_backtest, nautilus_walkforward, nautilus_prop_sim. The other two catalogue kinds ALWAYS 422: nautilus_prop_walkforward and stage_b_bundle_run. Bare "backtest" / "walkforward" are legacy aliases and may be rejected.',
+              examples: ["vbt_backtest", "nautilus_prop_sim"],
             }),
           ),
           config: Type.Optional(
@@ -110,7 +110,7 @@ export default defineToolPlugin({
               {
                 additionalProperties: true,
                 description:
-                  'Run config. REQUIRED keys: instrument (e.g. EUR_USD), from_ts and to_ts (window bounds; the catalogue declares a date such as 2026-02-01, and a full ISO-8601 timestamp also works). Use exactly those canonical key names. The dispatchable prop kinds (nautilus_prop_sim, nautilus_prop_walkforward) ALSO require rule_overlay, one of "prop_firm" or "standard". Optional: timeframe.',
+                  'Run config. ALWAYS required: instrument (e.g. EUR_USD), from_ts and to_ts (window bounds; a date such as 2026-02-01 or a full ISO-8601 timestamp). Use exactly those canonical key names. The prop kinds (vbt_prop_sim, nautilus_prop_sim) ALSO require rule_overlay, one of "prop_firm" or "standard". With "prop_firm", additionally pass prop_firm_variant_id (a list_prop_firm_challenges row\'s rule_set_id) and prop_account_size (that same row\'s account_size, whole USD). Optional: timeframe.',
                 examples: [
                   {
                     instrument: "EUR_USD",

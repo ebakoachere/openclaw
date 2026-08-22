@@ -54,6 +54,7 @@ export type MemoryEntryIn = {
 export type AgentMemoryWriteParams = {
   entries: MemoryEntryIn[];
   source_ref?: string;
+  narrative?: string;
 };
 
 export type AgentMemoryWriteDeps = {
@@ -92,11 +93,16 @@ export async function runAgentMemoryWrite(
       "vctraderai agent_memory_write: entries is required and must hold at least one entry",
     );
   }
-  // Only send `source_ref` when it is actually set: the request model is
+  // Only send `source_ref` / `narrative` when actually set: the request model is
   // `extra="forbid"`, and an explicit null is not the same as an absent key.
-  const body: { entries: MemoryEntryIn[]; source_ref?: string } = { entries };
+  const body: { entries: MemoryEntryIn[]; source_ref?: string; narrative?: string } = {
+    entries,
+  };
   if (typeof params.source_ref === "string" && params.source_ref.length > 0) {
     body.source_ref = params.source_ref;
+  }
+  if (typeof params.narrative === "string" && params.narrative.trim().length > 0) {
+    body.narrative = params.narrative;
   }
   return bffFetch(`/api/v1/workspaces/${workspaceId}/agent-memory/entries`, {
     method: "POST",
@@ -213,6 +219,13 @@ export default defineToolPlugin({
             description:
               "Workspace-relative path of the raw capture this came from, e.g. 'memory/2026-08-20.md'. Provenance only — the graph is the record.",
             maxLength: 512,
+          }),
+        ),
+        narrative: Type.Optional(
+          Type.String({
+            description:
+              "The markdown note this flush just wrote, sent verbatim. Lines that begin FINDING, LEARNED, FAILURE, WENT WRONG, PREFERENCE, PREFERS, OPEN QUESTION or UNRESOLVED become typed nodes, and any decision id (D-17, DEC-66, ADR 0078), account number, currency pair or [[type:ref]] marker inside them becomes an 'about' edge. Nothing else in the prose is mined, and anything you put in 'entries' wins over an extracted duplicate — so send what matters explicitly and use this to catch the rest.",
+            maxLength: 200_000,
           }),
         ),
       }),

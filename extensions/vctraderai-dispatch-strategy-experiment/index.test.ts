@@ -134,34 +134,88 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
     });
   });
 
-  it("teaches the six DISPATCHABLE kinds, the window keys, and rule_overlay", async () => {
+  // ---------------------------------------------------------------------------
+  // Dispatchability vocabulary.
+  //
+  // THE AUTHORITY IS PYTHON, NOT THIS FILE. `kind_is_dispatchable()` in
+  // web_api/sandbox/v3/kinds.py is the single source of truth, and the guard that
+  // actually watches it for drift lives where it can run against that module:
+  // tests/engine/agent/test_dispatch_strategy_experiment_tool.py
+  // ::test_docstring_teaches_exactly_the_dispatchable_kinds. These two lists are a
+  // MIRROR of a measured result, re-measured 2026-08-22 by executing the catalogue
+  // module. If you are changing them, change that guard's subject in the same wave
+  // and re-bake — a description is only true at the tag it was baked from.
+  //
+  // The lists below have been wrong before, and this file is why they stayed wrong:
+  // the previous tests asserted `/vbt_prop_sim \(BFF-stubbed at v1\.0/` and
+  // `/never promise the user metrics/`, pinning in place two claims that B1B-05 and
+  // #1227/#1229 had already falsified. A green suite was the reason nobody looked.
+  const DISPATCHES_FOR_REAL = [
+    "vbt_backtest",
+    "vbt_walkforward",
+    "vbt_prop_sim",
+    "nautilus_backtest",
+    "nautilus_walkforward",
+    "nautilus_prop_sim",
+  ] as const;
+  const ALWAYS_422 = ["nautilus_prop_walkforward", "stage_b_bundle_run"] as const;
+
+  const toolDescription = (): string => {
     const captured = createCapturedPluginRegistration({
       id: "vctraderai-dispatch-strategy-experiment",
     });
     plugin.register(captured.api);
     const { description = "" } = captured.tools[0] as { description?: string };
-    // kind_is_dispatchable() = NOT v3-deferred AND NOT phase5-deferred AND NOT
-    // operator-deferred (web_api/sandbox/v3/kinds.py:236-253). Exactly these six
-    // pass. Verified by executing the catalogue module, not by reading it.
-    for (const kind of [
-      "vbt_backtest",
-      "vbt_walkforward",
-      "nautilus_backtest",
-      "nautilus_walkforward",
-      "nautilus_prop_sim",
-      "nautilus_prop_walkforward",
-    ]) {
-      expect(description).toContain(kind);
+    return description;
+  };
+
+  it("offers every kind that dispatches for real, and warns off every kind that cannot", () => {
+    const description = toolDescription();
+    // Non-vacuity first: a partition proves nothing if either half is empty, and
+    // the split marker must exist before the halves mean anything.
+    expect(DISPATCHES_FOR_REAL.length).toBeGreaterThan(0);
+    expect(ALWAYS_422.length).toBeGreaterThan(0);
+    // Bound the refusal clause at BOTH ends. "everything after the marker" would
+    // sweep in the later config paragraph, which names the prop kinds for an
+    // entirely legitimate reason (rule_overlay), and the guard would read that as
+    // the description warning against a kind it in fact offers.
+    const REFUSAL_OPEN = "TWO are refused 422";
+    const REFUSAL_CLOSE = "say it is in build";
+    const open = description.indexOf(REFUSAL_OPEN);
+    const close = description.indexOf(REFUSAL_CLOSE);
+    expect(open, "the description no longer names a refused group").toBeGreaterThan(-1);
+    expect(close, "the refusal clause has no terminator").toBeGreaterThan(open);
+    const offered = description.slice(0, open);
+    const refusedHalf = description.slice(open, close);
+
+    for (const kind of DISPATCHES_FOR_REAL) {
+      expect(offered, `${kind} dispatches for real but is not offered`).toContain(kind);
+      expect(refusedHalf, `${kind} dispatches for real but is warned against`).not.toContain(kind);
     }
-    expect(description).toContain("six DISPATCHABLE");
+    for (const kind of ALWAYS_422) {
+      expect(refusedHalf, `${kind} can only 422 but is not warned about`).toContain(kind);
+      expect(offered, `${kind} can only 422 but is offered`).not.toContain(kind);
+    }
+  });
+
+  it("teaches the window keys and the prop-firm config the resolver actually demands", () => {
+    const description = toolDescription();
     expect(description).toContain("from_ts");
     expect(description).toContain("to_ts");
-    // Only the two DISPATCHABLE prop kinds require config.rule_overlay. Naming
-    // vbt_prop_sim here would be naming an undispatchable kind as a live option.
     expect(description).toContain("rule_overlay");
-    expect(description).toMatch(
-      /two dispatchable prop kinds \(nautilus_prop_sim, nautilus_prop_walkforward\)/,
-    );
+    // rule_overlay="prop_firm" ALSO needs prop_firm_variant_id + prop_account_size, and
+    // payload_resolver refuses rather than defaults either one — an absent size resolves
+    // against the catalogue's literal `account_size = 'all_sizes'` phase templates and
+    // returns a real-looking spec for an account the firm does not sell. Until this
+    // description said so, the only documented prop path ended in a 422 the model had
+    // been given no way to avoid.
+    expect(description).toContain("prop_firm_variant_id");
+    expect(description).toContain("prop_account_size");
+    // And it must say WHERE those come from. list_prop_firm_challenges returns the
+    // variant id under the name `rule_set_id` (backtest_tools.py: `v.id as rule_set_id`),
+    // so a model told only the parameter name has no way to find the value.
+    expect(description).toContain("rule_set_id");
+    expect(description).toContain("list_prop_firm_challenges");
     // The window keys must be taught as canonical, WITHOUT claiming start/end are
     // rejected: staged_params._CONFIG_KEY_ALIASES folds start/end onto from_ts/to_ts
     // before the required-key check (web_api/openclaw_internal/router.py:548). A
@@ -170,47 +224,15 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
     expect(description).not.toMatch(/"start"\/"end" are NOT accepted/);
   });
 
-  it("names BOTH non-dispatchable kinds as forbidden rather than offering them", async () => {
-    // The 8-kind catalogue has TWO non-dispatchable kinds, not one:
-    //   stage_b_bundle_run -> V3_DEFERRED_KIND_VALUES        (kinds.py:148)
-    //   vbt_prop_sim       -> OPERATOR_DEFERRED_KIND_VALUES  (kinds.py:223)
-    // Both are refused 422 at the /stage chokepoint before any row is written
-    // (openclaw_internal/router.py:529-538) and again at apply (service.py:578).
-    // vbt_prop_sim is the more dangerous of the two to teach: unlike the nautilus
-    // prop stubs it is NOT in STUB_KIND_VALUES, so were it ever let through it
-    // would land a permanent non-terminal orphan the stale-job reaper never sweeps.
-    // Offering either one sends the model down a path that can only fail — the
-    // exact defect this PR exists to end.
-    const captured = createCapturedPluginRegistration({
-      id: "vctraderai-dispatch-strategy-experiment",
-    });
-    plugin.register(captured.api);
-    const { description = "" } = captured.tools[0] as { description?: string };
-    expect(description).toMatch(/NON-DISPATCHABLE in V2/);
-    expect(description).toMatch(/stage_b_bundle_run \(DEFERRED TO V3\)/);
-    expect(description).toMatch(/vbt_prop_sim \(BFF-stubbed at v1\.0/);
-    // ...and vbt_prop_sim must NOT appear in the dispatchable sentence.
-    const dispatchableSentence = /six DISPATCHABLE catalogue values: ([^-]+)/.exec(
-      description,
-    )?.[1];
-    expect(dispatchableSentence).toBeDefined();
-    expect(dispatchableSentence).not.toContain("vbt_prop_sim");
-  });
-
-  it("warns that the two nautilus prop kinds park instead of computing", async () => {
-    // REAL_ENGINE_LIVE_KIND_VALUES (web_api/sandbox/v3/service.py:258) is only
-    // {vbt_backtest, vbt_walkforward, nautilus_backtest, nautilus_walkforward}.
-    // nautilus_prop_sim / nautilus_prop_walkforward route to StubEngineAdapter and
-    // return state="deferred_pending" with output_envelope={} — no worker, no
-    // metrics. A model that promises results from them is honest about the dispatch
-    // and wrong about the outcome.
-    const captured = createCapturedPluginRegistration({
-      id: "vctraderai-dispatch-strategy-experiment",
-    });
-    plugin.register(captured.api);
-    const { description = "" } = captured.tools[0] as { description?: string };
-    expect(description).toMatch(/deferred_pending/);
-    expect(description).toMatch(/never promise the user metrics/);
+  it("no longer claims a prop sim parks without computing anything", () => {
+    // Both prop-sim kinds reach a real engine now: the vbt one since B1B-05 (the
+    // firm's real rules resolved from public.prop_firm_* instead of an empty
+    // rules={} spec) and the nautilus one since #1227/#1229 (native segment adapter
+    // + worker route). The old copy told the model to never promise metrics from
+    // them, which on a prop-firm platform means refusing the flagship request.
+    const description = toolDescription();
+    expect(description).not.toContain("deferred_pending");
+    expect(description).not.toMatch(/never promise the user metrics/);
   });
 
   it("offers project_id, because an unprojected run is invisible", async () => {
@@ -234,18 +256,20 @@ describe("vctraderai-dispatch-strategy-experiment", () => {
     expect(project?.description ?? "").toMatch(/invisible/i);
   });
 
-  it("marks stage_b_bundle_run as V3-deferred rather than offering it", async () => {
+  it("marks stage_b_bundle_run as V3-deferred rather than offering it", () => {
     // It IS in the 8-kind catalogue, but V3_DEFERRED_KIND_VALUES makes it
     // non-dispatchable in V2: the BFF 422s before anything is staged
-    // (web_api/sandbox/v3/kinds.py:148). Teaching it as usable would send the
+    // (web_api/sandbox/v3/kinds.py). Teaching it as usable would send the
     // model down a path that can only fail.
-    const captured = createCapturedPluginRegistration({
-      id: "vctraderai-dispatch-strategy-experiment",
-    });
-    plugin.register(captured.api);
-    const { description = "" } = captured.tools[0] as { description?: string };
+    const description = toolDescription();
     expect(description).toContain("stage_b_bundle_run");
-    expect(description).toMatch(/stage_b_bundle_run[^.]*(DEFERRED TO V3|deferred)/i);
-    expect(description).toMatch(/six DISPATCHABLE/);
+    expect(description).toMatch(/stage_b_bundle_run \(deferred to V3\)/i);
+  });
+
+  it("tells the model what to say instead of staging a kind that cannot run", () => {
+    // A refusal the model cannot explain becomes a retry loop or an invented
+    // excuse. The description has to give it the honest sentence.
+    const description = toolDescription();
+    expect(description).toMatch(/say it is in build/i);
   });
 });

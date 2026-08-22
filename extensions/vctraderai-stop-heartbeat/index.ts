@@ -58,7 +58,11 @@ export default defineToolPlugin({
       description: "Stop an Agent Alpha heartbeat policy without deleting its history.",
       parameters: Type.Object(
         {
-          policy_id: Type.String({ description: "Heartbeat policy id.", minLength: 1 }),
+          policy_id: Type.String({
+            description:
+              "Heartbeat policy id -- the `policy_id` field of enable_heartbeat's response. There is no lookup by name or by workspace: without that id this tool has nothing to act on.",
+            minLength: 1,
+          }),
           stopped_by_user_id: Type.Optional(
             Type.String({ description: "User id requesting stop." }),
           ),

@@ -16,7 +16,7 @@
 // EXECUTE variant: unlike the read templates this client POSTs a JSON body to the
 // workspace-scoped live-execute boundaries. The BFF gates the action against the
 // owner's autonomous-unlock window SERVER-SIDE and either accepts/executes it or
-// downgrades it to a staged card; this client only carries the request and
+// returns execution_status "downgraded" and stages nothing; this client only carries the request and
 // surfaces the verbatim response. It can reach ONLY workspace-scoped paths.
 //
 // We deliberately ship this helper per-plugin rather than via a shared package:
@@ -144,9 +144,7 @@ export class BffRequestError extends Error {
     // the message is what the tool runner shows the model.
     const summary = `vctraderai bff request failed: ${detail.code} (${detail.status}) ${detail.message}`;
     super(
-      detail.retrySuggestion
-        ? `${summary} — retry_suggestion: ${detail.retrySuggestion}`
-        : summary,
+      detail.retrySuggestion ? `${summary} — retry_suggestion: ${detail.retrySuggestion}` : summary,
     );
     this.name = "BffRequestError";
     this.detail = detail;

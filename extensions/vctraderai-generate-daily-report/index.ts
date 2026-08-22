@@ -2,13 +2,24 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 import { Type } from "typebox";
 import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
-// VC Trader AI: generate_daily_report.
+// VC Trader AI: generate_daily_report. DEAD ON THIS SURFACE.
 //
-// READ_ONLY per ADR 0078. Calls the BFF
-// `POST /api/v1/openclaw/reports/daily` endpoint which computes a daily
-// trading-report envelope from existing decision-ledger / trade-fill data
-// and returns it verbatim. No mutation - the BFF persists nothing on this
-// path; the report is rebuilt on each call.
+// Measured against propfirm_manager as of 2026-08-22:
+//
+//  1. `generate_daily_report` is in core/openclaw/allowlist.py's
+//     RETIRED_ENGINE_TOOLS and absent from the 133-entry ALLOWLIST.
+//  2. `POST /api/v1/openclaw/reports/daily` matches NO route on the assembled
+//     app (Starlette Match.NONE). Positive controls in the same probe:
+//     POST /api/v1/openclaw/notifications/send -> FULL,
+//     GET /api/v1/reports/daily -> FULL. So the call 404s; the header used to
+//     claim it "computes a daily trading-report envelope ... and returns it
+//     verbatim".
+//
+// The only daily-report HTTP surface is GET /api/v1/reports/daily on the
+// session-gated human router, which this plugin does not call. An engine-side
+// generate_daily_report callable still exists in
+// engine/agent/tools/registry_tools.py, but that is the legacy engine
+// TOOL_REGISTRY runtime and is unreachable from here.
 
 export const GENERATE_DAILY_REPORT_TOOL_NAME = "generate_daily_report";
 
@@ -50,13 +61,16 @@ export async function runGenerateDailyReport(
 export default defineToolPlugin({
   id: "vctraderai-generate-daily-report",
   name: "VC Trader AI Generate Daily Report",
-  description: "Read-only generator for the workspace daily trading report.",
+  description: "Daily report generator - retired; its route no longer exists.",
   tools: (tool) => [
     tool({
       name: GENERATE_DAILY_REPORT_TOOL_NAME,
       label: "Generate Daily Report",
       description:
-        "Compute and return the daily trading report envelope for a workspace. READ_ONLY per ADR 0078 - no mutation.",
+        "UNAVAILABLE - do not call. This tool is retired from the OpenClaw allowlist and the " +
+        "route it posts to (/api/v1/openclaw/reports/daily) matches no route, so every call " +
+        "returns 404 and never a report. To answer how the desk did, use list_reports, then " +
+        "get_report with the report UUID from the card you want.",
       parameters: Type.Object({
         workspace_id: Type.String({
           description: "Workspace UUID (lowercase hex with dashes).",
@@ -64,8 +78,7 @@ export default defineToolPlugin({
         }),
         day: Type.Optional(
           Type.String({
-            description:
-              "Optional report day in ISO-8601 date form (YYYY-MM-DD). Defaults to BFF-side latest closed session.",
+            description: "Report day, ISO-8601 (YYYY-MM-DD).",
             minLength: 1,
           }),
         ),

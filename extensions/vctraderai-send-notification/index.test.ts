@@ -59,6 +59,21 @@ describe("vctraderai-send-notification", () => {
     expect(description).not.toMatch(/review \+ Apply/i);
   });
 
+  // Reads the closed vocabulary out of the published schema, whichever shape
+  // typebox emits for a union of literals (enum, or anyOf of consts, or a lone
+  // const).
+  function attachmentKindValues(parameters: any): string[] {
+    const attachments = parameters?.properties?.attachments;
+    const item = attachments?.type === "array" ? attachments.items : attachments?.anyOf?.[0]?.items;
+    const kind = item?.properties?.kind;
+    if (!kind) return [];
+    if (Array.isArray(kind.enum)) return kind.enum.map(String);
+    if (Array.isArray(kind.anyOf)) {
+      return kind.anyOf.map((s: any) => String(s.const ?? s.enum?.[0]));
+    }
+    return kind.const === undefined ? [] : [String(kind.const)];
+  }
+
   it("exposes attachments in the schema so a published report can be delivered", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
     plugin.register(captured.api);
@@ -68,8 +83,51 @@ describe("vctraderai-send-notification", () => {
     // Optional: an account-independent notification must stay expressible.
     expect(parameters.required ?? []).not.toContain("attachments");
     const item = attachments.type === "array" ? attachments.items : attachments.anyOf?.[0]?.items;
-    expect(item?.properties?.kind?.const).toBe("report");
     expect(item?.required).toEqual(expect.arrayContaining(["kind", "id"]));
+    expect(attachmentKindValues(parameters)).toContain("report");
+  });
+
+  // WAS FALSE: this test asserted `item.properties.kind.const === "report"` and
+  // the schema said "Attachment kind. Only 'report' is supported today." The
+  // server has accepted three kinds since propfirm_manager #1425 --
+  // web_api/notifications/inpage/schemas.py declares
+  // `Literal["report","dataset","notebook"]` and service.py's
+  // _VALID_ATTACHMENT_KINDS is ("report","dataset","notebook"), with a separate
+  // resolution branch per kind. The green suite hid it because the test pinned
+  // the PLUGIN's own narrowed literal, never the server vocabulary it named:
+  // plugin and test agreed with each other while both disagreed with the
+  // platform, so a specialist that had just written a dataset or a notebook was
+  // told delivery-by-attachment was impossible.
+  it("offers all three attachment kinds the server resolves", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const parameters = captured.tools[0].parameters as any;
+    expect(attachmentKindValues(parameters).sort()).toEqual(["dataset", "notebook", "report"]);
+  });
+
+  it("does not claim report is the only attachment kind", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const schema = JSON.stringify(captured.tools[0].parameters);
+    expect(schema).not.toMatch(/Only 'report' is supported/i);
+    expect(schema).not.toMatch(/only\s+.?report.?\s+is supported/i);
+  });
+
+  // The id means something different per kind, and a model told only the
+  // parameter name cannot complete the call. Each producer is named with the
+  // FIELD its response carries: publish_report -> report_id, store_dataset ->
+  // the name it was stored under (datasets are addressed by name, not uuid --
+  // _default_dataset_resolver), list_notebooks -> notebook_id.
+  it("says where each attachment id comes from", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
+    plugin.register(captured.api);
+    const parameters = captured.tools[0].parameters as any;
+    const attachments = parameters?.properties?.attachments;
+    const item = attachments.type === "array" ? attachments.items : attachments.anyOf?.[0]?.items;
+    const idDescription = String(item?.properties?.id?.description ?? "");
+    expect(idDescription).toMatch(/publish_report/);
+    expect(idDescription).toMatch(/store_dataset/);
+    expect(idDescription).toMatch(/list_notebooks/);
   });
 
   it("posts straight through to the direct-control notifications route", async () => {
@@ -91,6 +149,24 @@ describe("vctraderai-send-notification", () => {
       { fetchImpl },
     );
     expect(seen.body.attachments).toEqual([{ kind: "report", id: "rpt-42" }]);
+  });
+
+  it("forwards dataset and notebook attachments too", async () => {
+    const { fetchImpl, seen } = captureFetch();
+    await runSendNotification(
+      {
+        title: "Research drop",
+        attachments: [
+          { kind: "dataset", id: "cot-positioning-2026-08" },
+          { kind: "notebook", id: "6f1c2b0e-0000-4000-8000-000000000001" },
+        ],
+      } as any,
+      { fetchImpl },
+    );
+    expect(seen.body.attachments).toEqual([
+      { kind: "dataset", id: "cot-positioning-2026-08" },
+      { kind: "notebook", id: "6f1c2b0e-0000-4000-8000-000000000001" },
+    ]);
   });
 
   // --- declared, not merely forwarded -------------------------------------

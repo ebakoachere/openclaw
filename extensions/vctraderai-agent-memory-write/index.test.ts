@@ -154,6 +154,46 @@ describe("vctraderai-agent-memory-write", () => {
     expect(captured.body).toMatchObject({ source_ref: "memory/2026-08-20.md" });
   });
 
+  it("warns that source_ref is a batch-refusal gate, not just provenance", () => {
+    // WHAT WAS FALSE: source_ref was described as "Provenance only — the graph is
+    // the record", which tells the model the field cannot affect the write. It
+    // can. `MemoryWriter.write` normalises source_ref and calls
+    // `is_excluded_ingestion_path` BEFORE any insert (web_api/agent_memory/
+    // service.py:117,125); on a match it returns early with written_node_ids=[],
+    // written_edge_count=0 and EVERY entry in `skipped` (D-21) — an
+    // all-or-nothing refusal of the whole batch. Verified by running
+    // core/openclaw/memory_graph.py: 'memory/dreaming/deep/x.md',
+    // 'memory/.dreams/x.json', 'notes/dreams.md', 'MEMORY/DREAMING/deep/x.md' and
+    // 'memory\dreaming\rem\b.md' all return excluded=true, while
+    // 'memory/2026-08-20.md' and 'MEMORY.md' return false.
+    //
+    // WHY THE GREEN SUITE HID IT: the two tests above assert only that the
+    // string reaches the request body. That stays true whether the server then
+    // writes the batch or refuses all of it, so transport coverage could never
+    // fail on a description that misstates the server's behaviour. Only an
+    // assertion on the DESCRIPTION can.
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-agent-memory-write",
+    });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const sourceRef = tool.parameters?.properties?.source_ref?.description ?? "";
+    expect(sourceRef, "source_ref must be an advertised parameter").not.toBe("");
+    // The retired lie must not come back.
+    expect(sourceRef).not.toContain("Provenance only");
+    // The model must be able to predict the refusal BEFORE it loses a flush:
+    // both excluded prefixes, the excluded filename, and the fact that the whole
+    // batch — not the offending entry — is refused.
+    expect(sourceRef).toContain("memory/dreaming");
+    expect(sourceRef).toContain("memory/.dreams");
+    expect(sourceRef).toContain("dreams.md");
+    expect(sourceRef).toMatch(/WHOLE batch/);
+    // And where the refusal is legible in the response.
+    expect(sourceRef).toContain("skipped");
+  });
+
   it("omits narrative entirely when it is not supplied, or is blank", async () => {
     const captured = emptyCaptured();
     await runAgentMemoryWrite({ entries: [ENTRY] }, { fetchImpl: capturingFetch(captured) });

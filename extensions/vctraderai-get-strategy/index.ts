@@ -6,7 +6,13 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 //
 // READ_ONLY per ADR 0078. Calls the BFF `/api/v1/openclaw/catalogue/strategies/${strategy_id}` endpoint and
 // returns the raw envelope produced by the propfirm_manager
-// `engine.agent.tools.data_tools.get_strategy` function.
+// `engine.agent.tools.registry_tools.get_strategy` function.
+//
+// That function reads the WORKSPACE-scoped registry head
+// `strategy_registry.strategies` (+ `strategy_registry.strategy_versions`, and the
+// research.strategy_* manifests) under a two-phase RLS gate; its own `sources`
+// field is `postgres:strategy_registry.strategies`. There is no `core.strategies`
+// table in the platform -- the description used to name one.
 
 export const GET_STRATEGY_TOOL_NAME = "get_strategy";
 
@@ -50,10 +56,11 @@ export default defineToolPlugin({
       name: GET_STRATEGY_TOOL_NAME,
       label: "Get Strategy",
       description:
-        "Return a single strategy row from the propfirm_manager core.strategies catalogue. READ_ONLY per ADR 0078 - no mutation.",
+        "Return a single strategy from the propfirm_manager workspace-scoped registry head strategy_registry.strategies. Returns row (strategy_id, name, strategy_type_id, entrypoint, default_params) plus its timeframes, instruments, sessions, indicators and recent source_versions. Not visible in your workspace = not found. READ_ONLY per ADR 0078 - no mutation.",
       parameters: Type.Object({
         strategy_id: Type.String({
-          description: "Strategy identifier (UUID or short slug).",
+          description:
+            "Strategy UUID, or the exact display name / strategy_name slug (matched case-insensitively).",
           minLength: 1,
         }),
       }),

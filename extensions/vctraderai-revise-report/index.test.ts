@@ -87,6 +87,37 @@ describe("vctraderai-revise-report", () => {
     ).rejects.toThrow("at least one block");
   });
 
+  // WHAT WAS FALSE: the description read "Write the revision as a COMPLETE
+  // report, not a diff: every facet you omit is absent from the replacement."
+  // Three of the declared facets are never absent. post_report_revision
+  // forwards family/cadence/scope as None when omitted, and author_report then
+  // substitutes the inherited TEMPLATE's defaults
+  // (`_require_enum(family, ...) or tpl.family`, likewise cadence and scope).
+  // Running the platform service with a session_summary predecessor that
+  // carried family=research, cadence=monthly, scope=agent and every facet
+  // omitted produced family=performance, cadence=daily, scope=platform — so an
+  // omission is neither absent nor inherited, but a silent third value, and a
+  // correction can land in a different library bucket from the report the
+  // reader was sent. publish_report's description already states the true rule
+  // ("Any facet you leave unset defaults from the template") for the SAME
+  // function. WHY THE GREEN SUITE HID IT: every assertion here was about the
+  // request shape, and the one body assertion sends no facets at all, so the
+  // defaulting behaviour was never observed on either side of the seam.
+  it("warns that family, cadence and scope default from the template when omitted", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-revise-report" });
+    plugin.register(captured.api);
+    const description = (captured.tools[0] as unknown as { description: string }).description;
+    // Non-vacuity control: this really is the omission paragraph.
+    expect(description).toMatch(/COMPLETE report, not a diff/);
+    expect(description).not.toMatch(/every facet you omit is absent from the replacement/);
+    expect(description).toMatch(
+      /family, cadence and scope are the exception[\s\S]*TEMPLATE's default, not the predecessor's value/,
+    );
+    // The two genuinely inherited fields are still stated, because that half was
+    // always true and is what keeps a correction inside its dedupe slot.
+    expect(description).toMatch(/Only template and period_key are inherited from the predecessor/);
+  });
+
   it("declares no field the router discards", () => {
     const names = declaredParameterNames();
     // Non-vacuity control: a real field the router DOES forward.

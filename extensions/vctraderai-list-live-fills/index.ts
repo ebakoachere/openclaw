@@ -7,6 +7,14 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // READ_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). Calls
 // the workspace-scoped BFF read as the workspace owner (PFM_AGENT_TOKEN) and
 // returns the verbatim envelope.
+//
+// Two BFF facts the schema must not contradict:
+//  - limit is bound by Query(ge=1, le=MAX_FILLS_LIMIT) with MAX_FILLS_LIMIT=200,
+//    so 201+ is a FastAPI 422 before the handler runs.
+//  - pagination does not exist. The route accepts `cursor` and forwards it, but
+//    build_fills never reads it and hard-codes next_cursor=None; no repository
+//    implementation takes a cursor. `cursor` is therefore NOT offered to the
+//    model, though runListLiveFills still forwards one if a caller passes it.
 
 export const LIST_LIVE_FILLS_TOOL_NAME = "list_live_fills";
 
@@ -24,6 +32,7 @@ export type ListLiveFillsDeps = {
 
 export type ListLiveFillsParams = {
   account_id: string;
+  /** Accepted by the route and inert server-side; not exposed to the model. */
   cursor?: string;
   limit?: number;
 };
@@ -64,15 +73,19 @@ export default defineToolPlugin({
       name: LIST_LIVE_FILLS_TOOL_NAME,
       label: "List Live Fills",
       description:
-        "List the signed-in user's recent live fills via the live read endpoints. READ_ONLY per ADR 0078 - no mutation. Scoped to the workspace owner.",
+        "List the signed-in user's recent live fills via the live read endpoints. Returns ONE page: there is no pagination, next_cursor is always null, and a response truncated at `limit` is indistinguishable from the complete history — do not treat it as the account's full fill record. READ_ONLY per ADR 0078 - no mutation. Scoped to the workspace owner.",
       parameters: Type.Object({
         account_id: Type.String({
-          description: "Live account id to read fills for.",
+          description:
+            "Live account id; list_live_accounts_for_deployment returns these as rows[].live_account_id.",
           minLength: 1,
         }),
-        cursor: Type.Optional(Type.String({ description: "Opaque pagination cursor." })),
         limit: Type.Optional(
-          Type.Integer({ description: "Maximum fills to return.", minimum: 1, maximum: 500 }),
+          Type.Integer({
+            description: "Maximum fills to return (default 50). Over 200 the API returns HTTP 422.",
+            minimum: 1,
+            maximum: 200,
+          }),
         ),
       }),
       async execute(params, _config, context) {

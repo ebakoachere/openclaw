@@ -2,15 +2,21 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 import { Type } from "typebox";
 import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
-// VC Trader AI: generate_report (PROPOSE).
+// VC Trader AI: generate_report (RETIRED).
 //
-// PROPOSE_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). This
-// tool STAGES a proposal; it NEVER executes the action directly. It POSTs to the
-// BFF staged-action chokepoint `POST /api/v1/openclaw/stage` with
-// `{ tool_name, workspace_id, params, summary }`. The BFF gates the tool against
-// the closed-world allowlist, resolves the target_action_kind + confirm tier
-// SERVER-SIDE from the allowlist spec, persists a reviewable staged descriptor,
-// and returns it; the human reviews + Applies it in the chat.
+// `generate_report` is NOT in the platform's closed-world allowlist: it is in
+// `RETIRED_ENGINE_TOOLS` (core/openclaw/allowlist.py). This client still POSTs
+// `{ tool_name, workspace_id, params, summary }` to the staged-action chokepoint
+// `POST /api/v1/openclaw/stage`, but that handler re-gates the BODY tool with
+// `gate_tool_call` before parsing or persisting anything
+// (web_api/openclaw_internal/router.py), so the call raises ToolForbiddenError
+// and the endpoint answers 403 `openclaw_tool_forbidden`. No staged descriptor
+// is written and no human ever sees a card. Retirement is belt-and-braces:
+// `generate_report` is also absent from AGENT_ALPHA_TIER_MAP and has no
+// staged-apply adapter, so even a pre-existing card could not be Applied.
+//
+// The governed replacement is the report_* family: publish_report /
+// revise_report / retract_report, all DIRECT_CONTROL, which execute directly.
 
 export const GENERATE_REPORT_TOOL_NAME = "generate_report";
 const STAGE_PATH = "/api/v1/openclaw/stage";
@@ -65,7 +71,12 @@ export async function runGenerateReport(
   });
   return {
     staged,
-    message: "Staged a generate report proposal. Review + Apply it in the chat.",
+    // NOT "staged a proposal for review": generate_report is retired from the
+    // platform allowlist, so the stage endpoint refuses it 403 and nothing is
+    // persisted. Claiming a reviewable card here would let the model tell the
+    // founder a proposal is waiting when none was ever created.
+    message:
+      "generate_report is retired from the platform allowlist; nothing is staged for review. Use publish_report to file a report.",
   };
 }
 
@@ -73,13 +84,13 @@ export default defineToolPlugin({
   id: "vctraderai-generate-report",
   name: "VC Trader AI Generate Report (Propose)",
   description:
-    "Stages a workspace-report generation proposal for human review; never generates it directly.",
+    "Retired: the platform refuses generate_report. Use publish_report to file a report.",
   tools: (tool) => [
     tool({
       name: GENERATE_REPORT_TOOL_NAME,
       label: "Generate Report",
       description:
-        "Generate a workspace report. This STAGES a proposal for the human to review + Apply in the chat - it does NOT execute the action directly. PROPOSE_ONLY per ADR 0078.",
+        "RETIRED - do not call. generate_report is not in the platform's tool allowlist: every call is refused 403 openclaw_tool_forbidden before anything is written, so nothing is staged and no human is ever shown a proposal to Apply. Use publish_report to file a report, revise_report to correct one, retract_report to withdraw one.",
       parameters: Type.Object(
         {
           report_type: Type.Optional(

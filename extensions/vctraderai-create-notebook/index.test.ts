@@ -146,18 +146,18 @@ describe("vctraderai-create-notebook", () => {
     ).rejects.toThrow("notebook_json must encode a JSON object");
     expect(called).toBe(false);
   });
-  it("accepts run_id, without which the notebook is authored with no data", async () => {
-    // The executor has NO database reachability -- absolute and test-enforced -- so a
-    // run's equity/trades/metrics must be embedded AT AUTHORING TIME or read back
-    // through the governed vctrader seam. (It is NOT a locked sandbox in the NETWORK
-    // sense: the executor and the interactive kernel both carry outbound internet via
-    // NAT, verified against live AWS 2026-08-07. Only the DB boundary is absolute.)
-    // The BFF has
-    // always been ready for this — templates.py:56 reads run_id plus the aliases
-    // source_run_id / backtest_run_id / dispatch_job_id — but this plugin had no such
-    // field, so the model could not supply one and EVERY agent-authored notebook shipped
-    // with run_id = "" and every analysis cell degraded to
-    // "No run snapshot is embedded in this notebook."
+  it("describes run_id as template-branch-only and names where the value comes from", () => {
+    // WHAT THE OLD TEST PINNED, AND WHY GREEN HID IT.
+    // The previous version of this test asserted only /no data|authoring time/i,
+    // and narrated in a comment that an agent notebook's analysis cells "degrade
+    // to 'No run snapshot is embedded in this notebook.'" -- the same sentence the
+    // tool description quoted. That sentence has not been emitted by the platform
+    // generator for a long time: measured against the platform repo,
+    // generate_template_notebook(title='T', params={}) produces 13 cells in which
+    // "No run snapshot is embedded" does not appear at all (it survives only in a
+    // source comment and in a regression test asserting its ABSENCE). The loose
+    // regex was satisfied by the false sentence, so the suite stayed green while
+    // the model was being told to grep for a string no notebook can contain.
     const captured = createCapturedPluginRegistration({ id: "vctraderai-create-notebook" });
     plugin.register(captured.api);
     const tool = captured.tools[0] as {
@@ -165,7 +165,55 @@ describe("vctraderai-create-notebook", () => {
     };
     const runId = tool.parameters?.properties?.run_id;
     expect(runId, "run_id must be an accepted parameter").toBeDefined();
-    // The consequence must be stated, or the model has no reason to pass it.
-    expect(runId?.description ?? "").toMatch(/no data|authoring time/i);
+    const description = runId?.description ?? "";
+
+    // The dead string must never come back: no code path emits it.
+    expect(description).not.toContain("No run snapshot is embedded");
+
+    // A parameter the model cannot source is a parameter it cannot use, so the
+    // producing tool AND its response field must both be named.
+    expect(description).toContain("list_experiment_runs");
+    expect(description).toContain("rows[].run_id");
+
+    // The honest omit-run_id outcome: the template still executes green and says
+    // why it has nothing, rather than dead-ending on a fixed sentence.
+    expect(description).toContain("no_run_reference");
+  });
+
+  it("warns that run_id is recorded nowhere for an AUTHORED notebook", () => {
+    // MEASURED against the platform: create_agent_notebook(notebook=<authored cells>,
+    // snapshot_refs={run_id: ...}) stores a document whose full JSON does not contain
+    // the run id anywhere (keys cells/metadata/nbformat/nbformat_minor, metadata only a
+    // kernelspec), leaves the notebook row's default_params None, never consults the
+    // snapshot source, and dispatches papermill params {}. Nothing binds `run_id` in the
+    // kernel, so the cell the OLD description told the model to author --
+    // vctrader.list_run_trades(run_id) -- dies with NameError after the human has
+    // already approved the T1 card. The description must state that trap.
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-create-notebook" });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const description = tool.parameters?.properties?.run_id?.description ?? "";
+
+    expect(description).toContain("NameError");
+    expect(description).toContain("literal string");
+    // And it must NOT keep telling the model that passing run_id makes an authored
+    // notebook record its run -- the platform's own stage validator says the opposite.
+    expect(description).not.toMatch(/pass run_id so the notebook records which run/i);
+  });
+
+  it("teaches authored cells to pass a literal run id, not a bare run_id name", () => {
+    // Same defect surface: the notebook-authoring guidance used to print the
+    // run-scoped reads as list_run_trades(run_id), which is exactly the NameError
+    // above, and models copy this field verbatim.
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-create-notebook" });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const notebookDescription = tool.parameters?.properties?.notebook?.description ?? "";
+    expect(notebookDescription).toContain('vctrader.list_run_trades("<run id>")');
+    expect(notebookDescription).not.toContain("vctrader.list_run_trades(run_id)");
   });
 });

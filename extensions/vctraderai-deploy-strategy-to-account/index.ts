@@ -26,6 +26,24 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // (_build_deploy_strategy_to_account_kwargs) reads `version_id`, NOT
 // `strategy_version_id`. A card staged under the wrong key applies with a null
 // version.
+//
+// `account_id` IS AN ID SPACE, NOT AN ACCOUNT. staged_apply.py passes it
+// verbatim as `target_id` into governed_deploy(target_kind="account"), and
+// `trg_strategy_deployments_polymorphic_fk` accepts only a
+// public.workspace_direct_broker_accounts id or a public.workspace_phase_links
+// id, otherwise raising `target_id % not found in % discriminated table` inside
+// the Apply transaction. `live.accounts.live_account_id` (what
+// list_live_accounts_for_deployment returns) and `public.mt5_accounts.id` (what
+// list_my_accounts returns) are separate gen_random_uuid() spaces and are
+// always rejected. The id space is produced by GET /strategies/deploy-targets,
+// which is gated on `require_session` - human sessions only, no agent path.
+//
+// `risk_cap_override_pct` is PERSISTED AND RENDERED BUT NEVER ENFORCED.
+// _GOVERNED_DEPLOYMENTS_SQL (engine/live/active_deployment_resolvers.py) does
+// not select the column and no engine code reads it; the declared
+// RiskCapOverrideAboveTemplateMaxError is exported but never raised in product
+// code. Describing it as a cap is a false safety claim made at the exact step
+// where the human is relying on it.
 
 export const DEPLOY_STRATEGY_TO_ACCOUNT_TOOL_NAME = "deploy_strategy_to_account";
 const STAGE_PATH = "/api/v1/openclaw/stage";
@@ -155,7 +173,7 @@ export default defineToolPlugin({
       name: DEPLOY_STRATEGY_TO_ACCOUNT_TOOL_NAME,
       label: "Deploy Strategy To Account",
       description:
-        "Propose deploying one live strategy version directly to one account through the governed deployment flow. Required: strategy_id, version_id, and account_id. Optional: deployment_mode (paper, confirm, or live), risk_cap_override_pct, and idempotency_key. This STAGES a card for human review and step-up - it does NOT deploy, and you cannot deploy without the human. On Apply the BFF runs smoke/compatibility checks, records strategy_deployed, persists strategy_registry.strategy_deployments, and ensures the account node is running. PROPOSE_ONLY at confirm tier T3 per ADR 0078. Call list_live_accounts_for_deployment and list_current_deployments first so you propose against a real account and do not duplicate a deployment that already exists. Pass the strategy VERSION id as version_id (not strategy_version_id); deployment_mode defaults to paper, so name it explicitly when the human asked for confirm or live.",
+        "Propose deploying one live strategy version to one account. STAGES a card for human review; it does NOT deploy. PROPOSE_ONLY at confirm tier T3 per ADR 0078 - only the human's Apply, with step-up, deploys. Take strategy_id and version_id from list_strategies (fields strategy_id, current_version_id); get_strategy returns no version id. Apply refuses unless that version's lifecycle_stage is 'live' and runtime_tag is 'nautilus' (both list_strategies fields), refuses a re-deploy of the same version to the same target as already-attached, and gates a live deploy on a validated-on lineage mismatch. No tool here reads the governed deployment table, so you CANNOT pre-check the already-attached case. deployment_mode defaults to paper - name it explicitly when the human asked for confirm or live.",
       parameters: Type.Object(
         {
           strategy_id: Type.String({
@@ -169,7 +187,8 @@ export default defineToolPlugin({
           }),
           account_id: Type.String({
             minLength: 1,
-            description: "Target account id. Source it from list_live_accounts_for_deployment.",
+            description:
+              "Deployment target id, passed through unchanged as target_id. A DB trigger accepts ONLY a workspace_direct_broker_accounts id or a workspace_phase_links id; anything else fails the Apply with 'target_id ... not found in account discriminated table'. NO tool here returns one: list_live_accounts_for_deployment returns live_account_id and list_my_accounts returns mt5_account_id, both different id spaces that Apply rejects. It comes from the human's deploy-targets picker (human session only), so ask the human for it.",
           }),
           deployment_mode: Type.Optional(
             Type.Union([Type.Literal("paper"), Type.Literal("confirm"), Type.Literal("live")], {
@@ -182,7 +201,7 @@ export default defineToolPlugin({
               exclusiveMinimum: 0,
               maximum: 100,
               description:
-                "Optional per-deployment risk cap override, as a percentage. Omit to inherit the account's configured risk.",
+                "Optional percentage recorded on the deployment row for human review and audit. NOT ENFORCED: no runtime code reads it, so applied risk is identical whether you set it or omit it - live sizing is governed by the account's risk_config. Never tell the human this caps the deployment.",
             }),
           ),
           idempotency_key: Type.Optional(

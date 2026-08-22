@@ -75,4 +75,70 @@ describe("vctraderai-update-strategy", () => {
       detail: { code: "bff_500", status: 500 },
     });
   });
+
+  // ---------------------------------------------------------------------
+  // WHAT WAS FALSE, AND WHY A GREEN SUITE HID IT.
+  //
+  // The description used to read: "A vbt run(...) artifact remains research-only;
+  // a Nautilus promotion names a Strategy class in entry_function with
+  // runtime_tag=nautilus." No such promotion exists. `update_strategy_tool`
+  // refuses BOTH doors, measured by running the real tool against a stubbed
+  // vbt row:
+  //   runtime_tag='nautilus' + class entry_function
+  //     -> {"error": "runtime_tag is immutable on update. Create the target-runtime
+  //         artifact deliberately, then backtest that pinned version."}
+  //   class entry_function, runtime_tag omitted (so it defaults to the row's 'vbt')
+  //     -> NAUTILUS_CLASS_RUNTIME_REQUIRED, "A class-native entry_function is
+  //         permitted only on a nautilus strategy."
+  // A matching-tag rename returned a real would_write preview, so both refusals
+  // are genuine guard hits and not setup failures. Stronger still: runtime_tag is
+  // never written at all -- `sync_registry_on_research_update` is called with
+  // source_text/source_kind/entry_function/default_params/display_name only.
+  //
+  // Every existing test above passes an ordinary metadata edit through a FAKE
+  // fetch, so nothing here ever exercised runtime_tag and nothing ever read the
+  // description. The suite was green and the tool was lying.
+  // ---------------------------------------------------------------------
+  const capturedTool = () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-update-strategy" });
+    plugin.register(captured.api);
+    return captured.tools[0] as {
+      description?: string;
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+  };
+
+  it("does not advertise a Nautilus promotion this tool always refuses", () => {
+    const description = capturedTool().description ?? "";
+    // Non-vacuity: a `not.toMatch` on an empty string passes, so prove we are
+    // looking at a real description first.
+    expect(description.length).toBeGreaterThan(80);
+    expect(description).not.toMatch(/promotion/i);
+    // Positive control for the negative above: the word the old sentence paired
+    // with "promotion" is still present, so the regex is searching real text.
+    expect(description).toMatch(/nautilus/i);
+  });
+
+  it("states that runtime_tag is immutable and names the tool that can set it", () => {
+    const description = capturedTool().description ?? "";
+    expect(description).toMatch(/runtime_tag is immutable/i);
+    expect(description).toMatch(/create_strategy/);
+  });
+
+  it("tells the model where the current runtime_tag actually lives", () => {
+    // A model told a parameter but not where its only legal value comes from
+    // cannot complete the call. get_strategy does NOT return runtime_tag (its
+    // PHASE 2 select is strategy_id/name/strategy_type_id/entrypoint/
+    // default_params/created_at); list_strategies does.
+    const runtimeTag = capturedTool().parameters?.properties?.runtime_tag?.description ?? "";
+    expect(runtimeTag.length).toBeGreaterThan(20);
+    expect(runtimeTag).toMatch(/immutable/i);
+    expect(runtimeTag).toMatch(/list_strategies rows\[\]\.runtime_tag/);
+  });
+
+  it("says a class entry_function is only accepted on an already-nautilus strategy", () => {
+    const entryFunction = capturedTool().parameters?.properties?.entry_function?.description ?? "";
+    expect(entryFunction.length).toBeGreaterThan(20);
+    expect(entryFunction).toMatch(/already runtime_tag=nautilus/);
+  });
 });

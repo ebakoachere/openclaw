@@ -21,6 +21,17 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
 export const CREATE_SPECIALIST_TOOL_NAME = "create_specialist";
 
+/**
+ * Keys the BFF refuses on the create/spawn CLAIM path
+ * (`_require_specialist_key` -> 422 `openclaw_specialist_reserved_key`).
+ */
+export const RESERVED_SPECIALIST_KEYS =
+  "gold_specialist, oversight, chat, heartbeat, pre_session, day_ahead, session_summary";
+
+/** Server-enforced cadence band (`_validate_cadence`, specialist_store.py). */
+export const MIN_CADENCE_SECONDS = 180;
+export const MAX_CADENCE_SECONDS = 86400;
+
 export type CreateSpecialistDeps = {
   fetchImpl?: typeof globalThis.fetch;
   bffFetch?: BffFetchFn;
@@ -64,7 +75,12 @@ export default defineToolPlugin({
       parameters: Type.Object(
         {
           specialist_key: Type.String({
-            description: "Unique specialist key to claim, e.g. gold_specialist.",
+            description:
+              "Unique specialist key to claim, e.g. my_gold_desk. The reserved " +
+              "built-ins (" +
+              RESERVED_SPECIALIST_KEYS +
+              ") cannot be claimed: " +
+              "422 openclaw_specialist_reserved_key.",
             minLength: 1,
           }),
           display_name: Type.Optional(Type.String({ description: "Human-friendly display name." })),
@@ -80,15 +96,25 @@ export default defineToolPlugin({
             Type.String({ description: "Approval class, e.g. read_only." }),
           ),
           requested_model: Type.Optional(
-            Type.String({ description: "Requested model id / route." }),
+            Type.String({
+              description:
+                "Provider-prefixed model id, e.g. anthropic/claude-sonnet-4-6; " +
+                "valid ids come from get_model_routes " +
+                "(`routes.<route_key>.requested_model`). A route key (chat, " +
+                "heartbeat, gold_specialist, ...) is refused: 422 " +
+                "openclaw_specialist_invalid `model_not_allowed`. Omit to " +
+                "inherit the gateway default.",
+            }),
           ),
           cadence_seconds: Type.Optional(
             Type.Integer({
               description:
-                "Heartbeat cadence in seconds. Set this to make the specialist " +
-                "persistent (it gets a heartbeat); omit it for a one-shot " +
-                "specialist. Accounts are OPTIONAL and independent of cadence.",
-              minimum: 1,
+                "Heartbeat cadence in seconds, 180..86400; under 180 is refused " +
+                "with 422 openclaw_specialist_invalid. Set it to make the " +
+                "specialist persistent (it gets a heartbeat); omit it for a " +
+                "one-shot. Accounts are OPTIONAL and independent of cadence.",
+              minimum: MIN_CADENCE_SECONDS,
+              maximum: MAX_CADENCE_SECONDS,
             }),
           ),
           account_ids: Type.Optional(

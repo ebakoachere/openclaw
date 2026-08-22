@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runGenerateReport } from "./index.js";
 import {
   BffEgressViolation,
@@ -7,6 +7,23 @@ import {
 } from "./src/internal-http-client.js";
 
 describe("vctraderai-generate-report egress allowlist", () => {
+  // PRE-EXISTING FAILURE, fixed here: the happy-path case calls
+  // runGenerateReport, which reads PFM_WORKSPACE_ID, but this file never set it
+  // — so the case threw "PFM_WORKSPACE_ID is not set" and never reached a single
+  // URL assertion. Every sibling report plugin's egress test carries this
+  // stanza; this one was missing it.
+  const originalWorkspace = process.env.PFM_WORKSPACE_ID;
+  beforeEach(() => {
+    process.env.PFM_WORKSPACE_ID = "ws-001";
+  });
+  afterEach(() => {
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+  });
+
   it("the stage path is permitted by the allowlist", () => {
     expect("/api/v1/openclaw/stage").toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);
   });

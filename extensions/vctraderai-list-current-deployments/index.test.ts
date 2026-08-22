@@ -36,6 +36,34 @@ describe("vctraderai-list-current-deployments", () => {
     });
   });
 
+  // The suite below was green while the tool described itself as "List current
+  // deployments." - it only ever checked the route and the error envelope, and
+  // never read `description`. The transport was right; the sentence was not.
+  it("does not present itself as the answer to 'what is deployed right now'", () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-list-current-deployments",
+    });
+    plugin.register(captured.api);
+    const description = (captured.tools[0] as { description: string }).description;
+    // WAS FALSE: "List current deployments."
+    // The read is live.trader_deployments INNER-joined to live.trader_packages
+    // and research.trader_definitions. ADR 0083 PR-8e-3 deleted every writer of
+    // that table; the only non-test mutation left is an UPDATE inside
+    // record_runtime_heartbeat that short-circuits with reason
+    // "no_current_deployment" when no row exists, so it can never create one.
+    // What actually runs is strategy_registry.strategy_deployments, which this
+    // tool never reads and has no fallback to. Asked what is deployed, the
+    // model got [] and told the founder nothing was live while governed
+    // deployments were armed and trading.
+    expect(description).toMatch(/LEGACY/);
+    expect(description).toMatch(/live\.trader_deployments/);
+    expect(description).toMatch(/strategy_registry\.strategy_deployments/);
+    expect(description).toMatch(/NOT evidence that nothing is deployed/i);
+    // And it must not re-offer itself as the duplicate pre-check that
+    // deploy_strategy_to_account used to point at.
+    expect(description).toMatch(/cannot tell you whether a strategy version is already attached/i);
+  });
+
   it("calls the workspace-scoped read with the owner bearer", async () => {
     let capturedUrl = "";
     let capturedAuth: string | null = null;

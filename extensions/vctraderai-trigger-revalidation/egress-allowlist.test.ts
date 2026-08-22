@@ -17,7 +17,7 @@ describe("vctraderai-trigger-revalidation egress allowlist", () => {
       urls.push(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
-    await runTriggerRevalidation({ strategy_id: "x" } as any, { fetchImpl });
+    await runTriggerRevalidation({ version_id: "ver-1" } as any, { fetchImpl });
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
       expect(new URL(url).pathname).toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);

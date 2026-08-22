@@ -55,20 +55,26 @@ export async function runListMyAccounts(
 export default defineToolPlugin({
   id: "vctraderai-list-my-accounts",
   name: "VC Trader AI List My Accounts",
-  description:
-    "Read-only workspace-scoped tool: List the signed-in user's own MT5 accounts (personal + live-bot).",
+  description: "Read-only workspace-scoped tool: list the workspace owner's MT5 accounts.",
   tools: (tool) => [
     tool({
       name: LIST_MY_ACCOUNTS_TOOL_NAME,
       label: "List My Accounts",
       description:
-        "List the signed-in user's own MT5 accounts (personal + live-bot). READ_ONLY per ADR 0078 - no mutation. Scoped to the workspace owner.",
+        "List the workspace owner's MT5 accounts (read-only, workspace-scoped). Returns data.rows[]; each row's mt5_account_id is the id get_account_snapshot takes. A refusal comes back as HTTP 200 with data.error set and zero rows, so check data.error before concluding there are no accounts.",
       parameters: Type.Object({
         limit: Type.Optional(
-          Type.Integer({ description: "Maximum accounts to return.", minimum: 1, maximum: 500 }),
+          Type.Integer({
+            description: "Maximum accounts to return (default 100).",
+            minimum: 1,
+            maximum: 500,
+          }),
         ),
         purpose: Type.Optional(
-          Type.String({ description: "Optional purpose filter (e.g. live, personal)." }),
+          Type.String({
+            description:
+              "Optional filter. ONLY 'personal_journaling' or 'live_bot' is accepted; any other value is refused in-band (HTTP 200, data.error, zero rows). Omit to return both kinds.",
+          }),
         ),
       }),
       async execute(params, _config, context) {

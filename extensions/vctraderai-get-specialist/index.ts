@@ -12,6 +12,13 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
 export const GET_SPECIALIST_TOOL_NAME = "get_specialist";
 
+/**
+ * Keys the BFF refuses on the create/spawn CLAIM path, so no row for them
+ * can ever exist to be read back.
+ */
+export const RESERVED_SPECIALIST_KEYS =
+  "gold_specialist, oversight, chat, heartbeat, pre_session, day_ahead, session_summary";
+
 export type GetSpecialistDeps = {
   fetchImpl?: typeof globalThis.fetch;
   bffFetch?: BffFetchFn;
@@ -64,7 +71,13 @@ export default defineToolPlugin({
       parameters: Type.Object(
         {
           specialist_key: Type.String({
-            description: "Specialist key to read, e.g. gold_specialist.",
+            description:
+              "Key of a REGISTERED specialist, from list_specialists " +
+              "(`specialists[].specialist_key`); an unknown key is 404 " +
+              "openclaw_specialist_not_found. The reserved built-ins (" +
+              RESERVED_SPECIALIST_KEYS +
+              ") can never be registered, so reading " +
+              "one always 404s.",
             minLength: 1,
           }),
         },

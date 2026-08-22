@@ -2,13 +2,17 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 import { Type } from "typebox";
 import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
-// VC Trader AI: prop_rule_headroom (config-side prop-firm rule headroom).
+// VC Trader AI: prop_rule_headroom (config-side prop-firm rule thresholds).
 //
 // Calls the workspace-scoped risk/prop-headroom endpoint as the workspace owner
-// (PFM_AGENT_TOKEN) to compute config-side prop-firm rule headroom
-// (profit-target / max-DD / daily-loss room) for a variant + account size. This
-// is a POST with a JSON body, mirroring the research/fetch template it is
-// derived from.
+// (PFM_AGENT_TOKEN) for a variant + account size. POST with a JSON body.
+//
+// NAME WARNING: despite "headroom", this path returns NO live room. The BFF
+// service `preview_prop_headroom` declares no `account_state` parameter and
+// `PropHeadroomRequest` is extra="forbid" with only variant_id + account_size,
+// so the engine's `account_state` kwarg is structurally unreachable from here.
+// Every `room_usd` / `room_pct` is null and `live_available` is false on every
+// call; only the static config thresholds are populated.
 
 export const PROP_RULE_HEADROOM_TOOL_NAME = "prop_rule_headroom";
 
@@ -74,19 +78,21 @@ export default defineToolPlugin({
   id: "vctraderai-prop-rule-headroom",
   name: "VC Trader AI Prop Rule Headroom",
   description:
-    "Workspace-scoped tool: config-side prop-firm rule headroom (profit-target / max-DD / daily-loss room) for a variant + account size, via the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+    "Workspace-scoped tool: STATIC prop-firm rule thresholds (profit target / max-DD / daily loss) for a variant + account size, via the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). Never returns live room.",
   tools: (tool) => [
     tool({
       name: PROP_RULE_HEADROOM_TOOL_NAME,
       label: "Prop Rule Headroom",
       description:
-        "Config-side prop-firm rule headroom (profit-target / max-DD / daily-loss room) for a variant + account size. Provide the variant_id and account_size. Returns the room remaining against each prop-firm rule for that variant at the given account size.",
+        'STATIC per-stage prop-firm rule thresholds for a variant + account size. Returns NO live headroom despite the name: this path cannot receive account state, so `live_available` is false and every `room_usd`/`room_pct` is null on every call. Only config values are populated (`limit_pct`, `target_usd`, `limit_usd_static`, `basis`, `trailing`, `measurement`). Do NOT read `limit_usd_static` as room remaining - it is the FULL allowance, true only on an untouched account; to answer "how much before I breach?" you need live equity/PnL from another tool. Pass `variant_id` from list_prop_firm_challenges `rows[].rule_set_id` and `account_size` from `rows[].account_size` of that same row; a pair with no matching phase is refused 404.',
       parameters: Type.Object({
         variant_id: Type.String({
-          description: "The prop-firm variant id to evaluate rule headroom for.",
+          description:
+            "Prop-firm variant id - the `rows[].rule_set_id` field of a list_prop_firm_challenges response.",
         }),
         account_size: Type.Number({
-          description: "The account size (base currency) to compute rule headroom against.",
+          description:
+            "Account size in USD - the `rows[].account_size` field of that same list_prop_firm_challenges row. Must match a stage row for the variant or the call is refused 404.",
         }),
       }),
       async execute(params, _config, context) {

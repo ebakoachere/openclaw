@@ -19,10 +19,15 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // * `author_display_name` -- cosmetic only; authorship is resolved server-side
 //   from `require_specialist_authority` via the X-OpenClaw-Thread header.
 //
-// A revision is a FULL RESTATEMENT. Only `template` and `period_key` are
-// inherited from the predecessor when omitted; every other facet the router
-// forwards is forwarded as sent, so anything left out is simply absent from the
-// replacement.
+// A revision is a FULL RESTATEMENT, with ONE exception the model must know.
+// `template` and `period_key` are inherited from the predecessor when omitted
+// (svc.revise_report `kwargs.setdefault`). Everything else is forwarded as sent
+// — but `author_report` then fills `family`, `cadence` and `scope` from the
+// inherited TEMPLATE's defaults (`_require_enum(...) or tpl.family`, etc.), so
+// those three are never absent and never inherit the predecessor's overrides.
+// Measured on a session_summary predecessor carrying research/monthly/agent: a
+// revision omitting all three landed performance/daily/platform. Every other
+// facet does land empty (NULL, or `[]` for tags and assets).
 
 export const REVISE_REPORT_TOOL_NAME = "revise_report";
 
@@ -146,7 +151,7 @@ export default defineToolPlugin({
       name: REVISE_REPORT_TOOL_NAME,
       label: "Revise Report",
       description:
-        "Correct a report you have already published. Required: report_id (the report being superseded), title and body. This does NOT edit anything - a published report is immutable. It files a NEW report and archives the original in the same transaction, so an inbox message that already delivered the old one still shows the reader exactly what they were told, with a banner pointing at the replacement. Write the revision as a COMPLETE report, not a diff: every facet you omit is absent from the replacement. The only two fields inherited from the predecessor are template and period_key, which is what stops a correction filing itself under a different template or escaping the periodic dedupe constraint - so normally leave both unset. Like publish_report, this files the revision without delivering it: the response carries the new report_id and delivered: false, and you send it with send_notification if the reader needs to see the correction. Authorship is stamped server-side. If the report should be withdrawn rather than corrected, use retract_report instead.",
+        "Correct a report you have already published. Required: report_id (the report being superseded), title and body. Nothing is edited - a published report is immutable. It files a NEW report and archives the original in one transaction; a message that already delivered the old one still opens it, so the reader can see what they were told. Write the revision as a COMPLETE report, not a diff: an omitted facet lands empty rather than carrying over. Only template and period_key are inherited from the predecessor, which keeps the correction on the same template and inside the same periodic dedupe slot - so normally leave both unset. family, cadence and scope are the exception: omitted, they take that TEMPLATE's default, not the predecessor's value, so restate any the original overrode or the correction is silently re-filed under a different facet. Like publish_report it files without delivering: the response carries the new report_id and delivered: false; send it with send_notification if the reader needs the correction. Authorship is stamped server-side. If the report should be withdrawn rather than corrected, use retract_report instead.",
       parameters: Type.Object(
         {
           report_id: Type.String({

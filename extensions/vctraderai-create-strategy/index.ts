@@ -30,7 +30,14 @@ export type CreateStrategyDeps = {
 };
 
 export type CreateStrategyParams = {
-  name?: string;
+  /**
+   * REQUIRED. The BFF refuses the call with HTTP 422
+   * `openclaw_registry_mutation_failed` ("create_strategy is missing required
+   * field(s): name.") when this is absent, empty, or whitespace-only
+   * (web_api/openclaw_internal/router.py `_REGISTRY_CREATE_STRATEGY_REQUIRED`),
+   * and the engine tool's `name` keyword has no default behind it.
+   */
+  name: string;
   strategy_type?: string;
   archetype?: string;
   intent_brief?: string;
@@ -71,10 +78,14 @@ export default defineToolPlugin({
       name: CREATE_STRATEGY_TOOL_NAME,
       label: "Create Strategy",
       description:
-        "Create a NEW trading strategy directly. Always provide complete native-Python source_text, then lint before create. runtime_tag=vbt with run(...) is a research signal artifact. runtime_tag=nautilus requires a named nautilus_trader Strategy class in entry_function; only a pinned validated Nautilus class can deploy. This does not backtest, deploy, or touch live money.",
+        "Create a NEW trading strategy directly. name AND source_text are both required - omitting either is refused with HTTP 422 before anything runs; source_text must be complete native Python. runtime_tag=vbt with entry_function='run' is a research signal artifact - lint_strategy checks that shape. runtime_tag=nautilus needs a named nautilus_trader Strategy class in entry_function and is validated here against the Nautilus class contract (lint_strategy falsely rejects that shape). Only a runtime_tag=nautilus strategy with a pinned Nautilus class can deploy, and the runtime is fixed at creation - update_strategy cannot change it. This does not backtest, deploy, or touch live money.",
       parameters: Type.Object(
         {
-          name: Type.Optional(Type.String({ description: "Human-readable strategy name." })),
+          name: Type.String({
+            description:
+              "Required. Human-readable strategy name; missing, empty, or whitespace-only is refused with HTTP 422.",
+            minLength: 1,
+          }),
           strategy_type: Type.Optional(
             Type.String({
               description:

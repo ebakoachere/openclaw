@@ -81,24 +81,24 @@ export default defineToolPlugin({
       name: GET_ORDER_OUTCOME_TOOL_NAME,
       label: "Get Order Outcome",
       description:
-        'Confirm the TRUE terminal outcome of an agent-placed order from the durable decision ledger before telling the owner anything about a fill. ALWAYS call get_order_outcome to confirm the real terminal outcome (executed / rejected / gated / aborted) before saying an order filled — a place returns published_pending, which is NOT a fill, only "reached the queue". Provide at least one handle: idempotency_key (returned by agent_place_order), order_id, or client_order_id. Owner-scoped to the agent\'s own workspace. Returns the durable status — executed (the ONLY status that means filled), rejected (with rejection_reason), gated, aborted, downgraded, published_pending, pending (precommit only — node started, no verdict yet), or unknown (no ledger rows yet — common in the first moments after a place) — plus broker_order_id and deployment_mode when present. Treat published_pending, pending, AND unknown ALL as NOT-a-fill / keep-polling states: re-call get_order_outcome until you see a terminal status (executed / rejected / gated / aborted / downgraded). Never narrate a fill from published_pending, pending, unknown, or accepted_queued alone.',
+        'Confirm the TRUE terminal outcome of an agent-placed order from the durable decision ledger before telling the owner anything about a fill. ALWAYS call get_order_outcome to confirm the real terminal outcome (executed / rejected / gated / aborted) before saying an order filled — a place returns published_pending, which is NOT a fill, only "reached the queue". PREFER the idempotency_key returned by agent_place_order -- it is the handle the ledger is keyed on. order_id also resolves. client_order_id NEVER resolves and always returns unknown: the place path drops it before the broker and never writes it to a ledger row, so polling with it loops forever. Owner-scoped to the agent\'s own workspace. Returns the durable status — executed (the ONLY status that means filled), rejected (with rejection_reason), gated, aborted, downgraded, published_pending, pending (precommit only — node started, no verdict yet), or unknown (no ledger rows yet — common in the first moments after a place) — plus broker_order_id and deployment_mode when present. Treat published_pending, pending, AND unknown ALL as NOT-a-fill / keep-polling states: re-call get_order_outcome until you see a terminal status (executed / rejected / gated / aborted / downgraded). Never narrate a fill from published_pending, pending, unknown, or accepted_queued alone.',
       parameters: Type.Object({
         idempotency_key: Type.Optional(
           Type.String({
             description:
-              "The idempotency_key returned by agent_place_order. Provide at least one of idempotency_key / order_id / client_order_id.",
+              "The idempotency_key returned by agent_place_order. This is the handle that actually resolves -- prefer it over the other two.",
           }),
         ),
         order_id: Type.Optional(
           Type.String({
             description:
-              "The order id handle. Provide at least one of idempotency_key / order_id / client_order_id.",
+              "The order id handle; resolves against the ledger payload's order_id. Use it when you have no idempotency_key.",
           }),
         ),
         client_order_id: Type.Optional(
           Type.String({
             description:
-              "The client_order_id handle. Provide at least one of idempotency_key / order_id / client_order_id.",
+              "DEAD HANDLE -- do not use. It is accepted and aliased onto the order_id lookup, but the place path never writes a client_order_id to any ledger row, so this always returns unknown. Use idempotency_key.",
           }),
         ),
       }),

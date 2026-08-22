@@ -66,7 +66,7 @@ export default defineToolPlugin({
       name: UPDATE_STRATEGY_TOOL_NAME,
       label: "Update Strategy",
       description:
-        "UPDATE an existing strategy directly. For a source edit, first get_strategy_source, lint_strategy, then provide the complete repaired Python source_text. A vbt run(...) artifact remains research-only; a Nautilus promotion names a Strategy class in entry_function with runtime_tag=nautilus. This does not backtest, deploy, or touch live money.",
+        "UPDATE an existing strategy directly. For a source edit, first get_strategy_source, then provide the complete repaired Python source_text (lint_strategy checks a vbt run(...) source only). runtime_tag is immutable here and is never written: a tag differing from the strategy's current one is refused, so a vbt strategy can never become nautilus - use create_strategy for a new nautilus artifact. A class-native entry_function is accepted only on a strategy that is already runtime_tag=nautilus. This does not backtest, deploy, or touch live money.",
       parameters: Type.Object(
         {
           strategy_id: Type.String({
@@ -92,15 +92,22 @@ export default defineToolPlugin({
             Type.Array(Type.String(), { description: "Indicator names the strategy uses." }),
           ),
           source_text: Type.Optional(
-            Type.String({ description: "Complete repaired native-Python source, required whenever changing source." }),
+            Type.String({
+              description:
+                "Complete repaired native-Python source, required whenever changing source.",
+            }),
           ),
           entry_function: Type.Optional(
-            Type.String({ description: "Updated run entrypoint or named Nautilus Strategy class." }),
+            Type.String({
+              description:
+                "'run' for a vbt strategy; a Nautilus Strategy class name only when the strategy is already runtime_tag=nautilus.",
+            }),
           ),
           runtime_tag: Type.Optional(
             Type.String({
               enum: ["vbt", "nautilus"],
-              description: "vbt is research; nautilus requires a class-native deployable artifact.",
+              description:
+                "Immutable on update and never written - omit it. Any value differing from the strategy's current tag (list_strategies rows[].runtime_tag) is refused.",
             }),
           ),
           intent_brief: Type.Optional(

@@ -13,6 +13,12 @@ function declaredParameterNames(): string[] {
   return Object.keys(schema.properties);
 }
 
+function toolDescription(): string {
+  const captured = createCapturedPluginRegistration({ id: "vctraderai-publish-report" });
+  plugin.register(captured.api);
+  return (captured.tools[0] as unknown as { description: string }).description;
+}
+
 describe("vctraderai-publish-report", () => {
   const originalWorkspace = process.env.PFM_WORKSPACE_ID;
   const originalToken = process.env.PFM_AGENT_TOKEN;
@@ -80,6 +86,28 @@ describe("vctraderai-publish-report", () => {
     await expect(
       runPublishReport({ template: "research_memo", title: "Memo", body: { blocks: [] } }),
     ).rejects.toThrow("at least one block");
+  });
+
+  // WHAT WAS FALSE: the description read "and each period can be filed only
+  // once - check list_reports first". The only dedupe is the partial unique
+  // index reports_periodic_dedupe_idx on (workspace_id, author_key, template,
+  // period_key) WHERE archived_at is null, so the period is claimed PER AUTHOR:
+  // the PM and each specialist can each file a session_summary for the same
+  // period_key and all of those inserts succeed. The advice compounded it,
+  // because GET /reports takes author_key as an optional filter defaulting to
+  // None and so returns every author's cards — a specialist that saw the PM's
+  // report for today would suppress its own mandated one. WHY THE GREEN SUITE
+  // HID IT: no test read the description at all, and the platform's own dedupe
+  // test files both rows under a single author_key, so the cross-author case
+  // was never exercised on either side.
+  it("states the periodic dedupe as per-author, not per-workspace", () => {
+    const description = toolDescription();
+    // Non-vacuity control: this really is the periodic paragraph.
+    expect(description).toMatch(/period_key/);
+    expect(description).not.toMatch(/each period can be filed only once/);
+    expect(description).not.toMatch(/check list_reports first/);
+    expect(description).toMatch(/per AUTHOR/);
+    expect(description).toMatch(/report_already_published/);
   });
 
   it("declares no field the router discards", () => {

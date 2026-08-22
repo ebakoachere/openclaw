@@ -2,15 +2,15 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 import { Type } from "typebox";
 import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
-// VC Trader AI: enqueue_walkforward_worker_job (PROPOSE).
+// VC Trader AI: enqueue_walkforward_worker_job (RETIRED).
 //
-// PROPOSE_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). This
-// tool STAGES a proposal; it NEVER executes the action directly. It POSTs to the
-// BFF staged-action chokepoint `POST /api/v1/openclaw/stage` with
-// `{ tool_name, workspace_id, params, summary }`. The BFF gates the tool against
-// the closed-world allowlist, resolves the target_action_kind + confirm tier
-// SERVER-SIDE from the allowlist spec, persists a reviewable staged descriptor,
-// and returns it; the human reviews + Applies it in the chat.
+// This tool is NO LONGER on the ADR 0078 allowlist. W10 B2 / R12 withdrew the
+// trader-definition dispatch path from the agent surface as a capability
+// RETIREMENT (core/openclaw/allowlist.py: absent from ALLOWLIST, present in
+// RETIRED_ENGINE_TOOLS). It still POSTs `POST /api/v1/openclaw/stage`, but that
+// endpoint calls gate_tool_call FIRST, which raises ToolForbiddenError for an
+// un-allowlisted name and is returned as 403 openclaw_tool_forbidden. Nothing is
+// persisted, so this plugin cannot propose -- it can only error.
 
 export const ENQUEUE_WALKFORWARD_WORKER_JOB_TOOL_NAME = "enqueue_walkforward_worker_job";
 const STAGE_PATH = "/api/v1/openclaw/stage";
@@ -34,7 +34,10 @@ export type EnqueueWalkforwardWorkerJobParams = {
   timeframe?: string;
   start?: string;
   end?: string;
-  n_splits?: number;
+  // NO fold-count field: `n_splits` occurs zero times in the platform, and no
+  // fold-count input exists under any other name. The engine's walkforward_spec
+  // takes train/test/step/gap/warmup/seed and the fold count falls out of that
+  // window geometry.
   params?: Record<string, unknown>;
   [key: string]: unknown;
 };
@@ -78,13 +81,13 @@ export default defineToolPlugin({
   id: "vctraderai-enqueue-walkforward-worker-job",
   name: "VC Trader AI Enqueue Walkforward Worker Job (Propose)",
   description:
-    "Stages a walkforward worker-job dispatch proposal for human review; never dispatches it directly.",
+    "RETIRED: enqueue_walkforward_worker_job is off the ADR 0078 allowlist; /stage refuses it 403 openclaw_tool_forbidden, so it stages nothing.",
   tools: (tool) => [
     tool({
       name: ENQUEUE_WALKFORWARD_WORKER_JOB_TOOL_NAME,
       label: "Enqueue Walkforward Worker Job",
       description:
-        "Dispatch a walkforward worker job. This STAGES a proposal for the human to review + Apply in the chat - it does NOT execute the action directly. PROPOSE_ONLY per ADR 0078.",
+        "RETIRED - do not call. enqueue_walkforward_worker_job was removed from the ADR 0078 allowlist (W10 B2), so this tool stages nothing: its only action, POST /api/v1/openclaw/stage, is refused with 403 openclaw_tool_forbidden before any proposal is persisted. The trader-definition dispatch path left the agent surface entirely. dispatch_strategy_experiment is NOT an equivalent - it is strategy-version-first and takes no trader definition and no prop-challenge sizing.",
       parameters: Type.Object(
         {
           trader_def_id: Type.Optional(
@@ -100,9 +103,6 @@ export default defineToolPlugin({
           ),
           end: Type.Optional(
             Type.String({ description: "Walkforward window end (ISO-8601 date)." }),
-          ),
-          n_splits: Type.Optional(
-            Type.Integer({ description: "Number of walkforward folds.", minimum: 1, maximum: 100 }),
           ),
           params: Type.Optional(
             Type.Record(Type.String(), Type.Unknown(), {

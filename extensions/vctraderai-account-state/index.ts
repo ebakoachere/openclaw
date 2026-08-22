@@ -7,6 +7,21 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // READ_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). Calls
 // two workspace-scoped BFF reads and returns their composed payload. The
 // helper guards path egress; the docker sandbox guards network egress.
+//
+// KNOWN BROKEN for the agent caller, measured against the running app:
+//   1. GET /api/v1/workspaces/{ws}/accounts is guarded by require_session
+//      (web_api/accounts/v3/router.py:407), and require_session resolves claims
+//      from the session COOKIE only (web_api/platform/dependencies.py:37-45).
+//      A request carrying the plugin's exact header set and no cookie returns
+//      401 {"code":"AUTH_REQUIRED"}. The sibling read /dashboard/home uses
+//      require_session_or_agent and gets past auth. Promise.all rejects on the
+//      first rejection, so BOTH halves are lost.
+//   2. src/internal-http-client.ts reads OPENCLAW_GATEWAY_TOKEN, but
+//      core/openclaw/provisioning_constants.py:104-111 names PFM_AGENT_TOKEN as
+//      the bearer for /workspaces/{ws}/* calls (which is what every sibling
+//      account plugin reads), so the dashboard half is mis-authenticated too.
+// Fixing either requires platform/client changes outside this description pass;
+// until then the tool description must say the call fails.
 
 export const ACCOUNT_STATE_TOOL_NAME = "account_state";
 
@@ -48,13 +63,13 @@ export default defineToolPlugin({
   id: "vctraderai-account-state",
   name: "VC Trader AI Account State",
   description:
-    "Read-only inspector for workspace account state (dashboard 5-stat block + accounts list).",
+    "Read-only inspector for workspace account state. Its accounts read is browser-session-only, so it fails for agent callers.",
   tools: (tool) => [
     tool({
       name: ACCOUNT_STATE_TOOL_NAME,
       label: "Account State",
       description:
-        "Returns the workspace 5-stat dashboard block plus the active accounts list. READ_ONLY per ADR 0078 - no mutation.",
+        "Read-only; DOES NOT WORK from an agent. Its accounts read (GET /workspaces/{id}/accounts) accepts only a browser session cookie and answers a bearer-token call with 401 AUTH_REQUIRED, which fails the whole tool - the dashboard half is discarded with it. Use list_my_accounts (data.rows) or get_account_snapshot (mt5_account_id from those rows) instead.",
       parameters: Type.Object({
         workspace_id: Type.String({
           description: "Workspace UUID (lowercase hex with dashes).",

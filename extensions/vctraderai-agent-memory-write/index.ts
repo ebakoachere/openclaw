@@ -217,7 +217,7 @@ export default defineToolPlugin({
         source_ref: Type.Optional(
           Type.String({
             description:
-              "Workspace-relative path of the raw capture this came from, e.g. 'memory/2026-08-20.md'. Provenance only — the graph is the record.",
+              "Workspace-relative path of the raw capture this came from, e.g. 'memory/2026-08-20.md'; omit it when there is no capture file. Persisted as provenance, but it is also a gate: a path under memory/dreaming/** or memory/.dreams/**, or any dreams.md, makes the server refuse the WHOLE batch — zero nodes, zero edges, and every entry returned in `skipped` (D-21). Matching ignores case, and backslashes and a leading './' are normalised first, so respelling the path does not evade it.",
             maxLength: 512,
           }),
         ),

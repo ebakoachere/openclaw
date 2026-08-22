@@ -1,7 +1,7 @@
 {
   "id": "vctraderai-modify-position-protection",
   "name": "VC Trader AI Modify Position Protection",
-  "description": "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open; otherwise it downgrades to a staged card the owner approves. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN) at /api/v1/workspaces/{ws}/live/positions/{position_id}/agent-protection.",
+  "description": "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open; otherwise the call does not go through and NOTHING is staged for approval (execution_status 'downgraded' + lock_reason); the position keeps its old protection. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN) at /api/v1/workspaces/{ws}/live/positions/{position_id}/agent-protection.",
   "activation": {
     "onStartup": true
   },

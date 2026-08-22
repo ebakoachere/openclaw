@@ -154,6 +154,65 @@ describe("vctraderai-agent-memory-write", () => {
     expect(captured.body).toMatchObject({ source_ref: "memory/2026-08-20.md" });
   });
 
+  it("omits narrative entirely when it is not supplied, or is blank", async () => {
+    const captured = emptyCaptured();
+    await runAgentMemoryWrite({ entries: [ENTRY] }, { fetchImpl: capturingFetch(captured) });
+    expect(captured.body).not.toHaveProperty("narrative");
+    // Whitespace is not a narrative. `MemoryWriter.write` only runs extraction on
+    // a non-blank string, so sending "   " would cost a round trip's payload to
+    // reach the same no-op — and `extra="forbid"` means an explicit null 422s.
+    const blank = emptyCaptured();
+    await runAgentMemoryWrite(
+      { entries: [ENTRY], narrative: "   \n  " },
+      { fetchImpl: capturingFetch(blank) },
+    );
+    expect(blank.body).not.toHaveProperty("narrative");
+  });
+
+  it("sends narrative VERBATIM under that exact key, or typed capture is inert", async () => {
+    // This is the seam the whole typed-capture feature hangs on, and it is the
+    // shape that has already burned this codebase once: a producer writing one
+    // key while the consumer reads another ships a fully unit-tested no-op. The
+    // BFF reads `MemoryWriteRequest.narrative` and the request model is
+    // `extra="forbid"`, so any other spelling is a 422 rather than a silent drop
+    // — but only a test that asserts on the BODY catches it before the bake.
+    const captured = emptyCaptured();
+    const narrative = [
+      "# flush 2026-08-22",
+      "",
+      "- FINDING — the pool host races the agent for the same file drop (see D-17)",
+      "- OPEN QUESTION: does EURUSD stay on feed through the London close?",
+    ].join("\n");
+    await runAgentMemoryWrite(
+      { entries: [ENTRY], narrative },
+      { fetchImpl: capturingFetch(captured) },
+    );
+    expect(captured.body).toMatchObject({ narrative });
+    // Verbatim: extraction is line- and marker-anchored, so any reflow here
+    // (trimming, joining, list-bullet normalisation) would change what the
+    // server can see.
+    expect((captured.body as { narrative: string }).narrative).toBe(narrative);
+  });
+
+  it("declares narrative as an accepted parameter, so the model can send it", async () => {
+    // The plugin forwarding a field the tool schema never advertises is the same
+    // as not having it: the model cannot pass what it is not told exists.
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-agent-memory-write",
+    });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const narrative = tool.parameters?.properties?.narrative;
+    expect(narrative, "narrative must be an advertised parameter").toBeDefined();
+    // And it must teach the markers, because extraction only reads marked lines —
+    // a model that sends unmarked prose gets `extraction_considered: 0` back and
+    // no way to know why.
+    expect(narrative?.description ?? "").toContain("FINDING");
+    expect(narrative?.description ?? "").toContain("OPEN QUESTION");
+  });
+
   it("requires at least one entry", async () => {
     const fetchImpl = capturingFetch(emptyCaptured());
     await expect(runAgentMemoryWrite({ entries: [] }, { fetchImpl })).rejects.toThrow(

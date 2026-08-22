@@ -8,7 +8,7 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // (PFM_AGENT_TOKEN) and returns the verbatim BFF response. The BFF gates the
 // mutation against the owner's autonomous-unlock window SERVER-SIDE: if the
 // window is open it accepts/executes the protection change; otherwise it
-// downgrades the request to a staged card the owner approves. The response
+// returns execution_status 'downgraded' and stages nothing. The response
 // carries accepted_queued / executed / downgraded_to_staged / lock_reason.
 
 export const MODIFY_POSITION_PROTECTION_TOOL_NAME = "modify_position_protection";
@@ -69,13 +69,13 @@ export default defineToolPlugin({
   id: "vctraderai-modify-position-protection",
   name: "VC Trader AI Modify Position Protection",
   description:
-    "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open; otherwise it downgrades to a staged card the owner approves.",
+    "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. A protection change that does not go through leaves the position on its OLD stop, or with none.",
   tools: (tool) => [
     tool({
       name: MODIFY_POSITION_PROTECTION_TOOL_NAME,
       label: "Modify Position Protection",
       description:
-        "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open; otherwise it downgrades to a staged card the owner approves.",
+        "Autonomously modify a live position's stop-loss / take-profit while the owner's autonomous-unlock window is open. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. A protection change that does not go through leaves the position on its OLD stop, or with none.",
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id that owns the position.",

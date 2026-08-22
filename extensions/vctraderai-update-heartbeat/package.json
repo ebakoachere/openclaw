@@ -2,7 +2,7 @@
   "name": "@openclaw/vctraderai-update-heartbeat",
   "version": "2026.6.30",
   "private": true,
-  "description": "Update cadence, timeout, route, symbols, or instructions for an existing Agent Alpha heartbeat policy.",
+  "description": "Update an existing Agent Alpha heartbeat policy. cadence and timeout are a single coupled write: sending one alone overwrites the other.",
   "type": "module",
   "dependencies": {
     "typebox": "1.1.38"

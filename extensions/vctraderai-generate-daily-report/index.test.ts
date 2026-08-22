@@ -15,7 +15,12 @@ describe("vctraderai-generate-daily-report", () => {
     });
   });
 
-  it("returns the report envelope verbatim on the happy path", async () => {
+  // NOTE: fetch is STUBBED here, so this proves only that whatever the
+  // transport returns is passed through unchanged. It cannot see that the real
+  // route is absent - which is exactly why the false "Compute and return the
+  // daily trading report envelope" description survived a green suite. See the
+  // description test at the bottom of this file.
+  it("passes a stubbed transport response through verbatim", async () => {
     const envelope = {
       workspace_id: "11111111-1111-1111-1111-111111111111",
       day: "2026-05-30",
@@ -92,5 +97,37 @@ describe("vctraderai-generate-daily-report", () => {
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });
+  });
+
+  // WHAT WAS FALSE: the tool description read "Compute and return the daily
+  // trading report envelope for a workspace. READ_ONLY per ADR 0078 - no
+  // mutation." It computes and returns nothing. Measured against
+  // propfirm_manager on 2026-08-22: 'generate_daily_report' is in
+  // core/openclaw/allowlist.py's RETIRED_ENGINE_TOOLS and absent from the
+  // 133-entry ALLOWLIST, and POST /api/v1/openclaw/reports/daily matches NO
+  // route on the assembled app (Starlette Match.NONE), while the positive
+  // controls POST /api/v1/openclaw/notifications/send and GET
+  // /api/v1/reports/daily both match FULL in the same probe. So a live call
+  // 404s.
+  //
+  // WHY THE GREEN SUITE HID IT: no test in this file ever read the
+  // description, and every transport test stubs fetch - a stub answers 200
+  // whatever the path, so route absence is invisible here by construction.
+  // The description is what the MODEL reads, so it is now asserted like
+  // behaviour.
+  it("tells the model the tool is unavailable instead of promising an envelope", () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-generate-daily-report",
+    });
+    plugin.register(captured.api);
+    const description = captured.tools[0].description ?? "";
+    expect(description).toMatch(/UNAVAILABLE/);
+    expect(description).toMatch(/404/);
+    // Names a surface that actually resolves, so the model has somewhere to go.
+    expect(description).toMatch(/list_reports/);
+    expect(description).toMatch(/get_report/);
+    // The retired claims must not come back.
+    expect(description).not.toMatch(/Compute and return the daily trading report envelope/i);
+    expect(description).not.toMatch(/READ_ONLY per ADR 0078/i);
   });
 });

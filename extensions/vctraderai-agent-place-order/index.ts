@@ -8,7 +8,7 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // (PFM_AGENT_TOKEN) and returns the verbatim BFF response. The BFF gates the
 // placement against the owner's autonomous-unlock window SERVER-SIDE: if the
 // window is open it accepts/executes the order; otherwise it downgrades the
-// request to a staged card the owner approves. The response carries
+// request returns execution_status 'downgraded' and stages nothing. The response carries
 // accepted_queued / executed / downgraded_to_staged / lock_reason.
 //
 // NO-NAKED-STOP RULE: stop_loss is MANDATORY at the tool boundary - the agent
@@ -81,13 +81,13 @@ export default defineToolPlugin({
   id: "vctraderai-agent-place-order",
   name: "VC Trader AI Agent Place Order",
   description:
-    "Autonomously place a live order (with a mandatory stop-loss) while the owner's autonomous-unlock window is open; otherwise downgrade to a staged card. Requires account_id, symbol, side, qty, stop_loss, intended_price.",
+    "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, qty, stop_loss and intended_price. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full 25-check risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled.",
   tools: (tool) => [
     tool({
       name: AGENT_PLACE_ORDER_TOOL_NAME,
       label: "Agent Place Order",
       description:
-        "Autonomously place a live order (with a mandatory stop-loss) while the owner's autonomous-unlock window is open; otherwise downgrade to a staged card. Requires account_id, symbol, side, qty, stop_loss, intended_price.",
+        "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, qty, stop_loss and intended_price. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full 25-check risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled.",
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id to place the order on.",

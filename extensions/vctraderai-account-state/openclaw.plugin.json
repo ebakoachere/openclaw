@@ -1,7 +1,7 @@
 {
   "id": "vctraderai-account-state",
   "name": "VC Trader AI Account State",
-  "description": "Read-only inspector for workspace account state (dashboard 5-stat block + accounts list).",
+  "description": "Read-only inspector for workspace account state. Its accounts read is browser-session-only, so it fails for agent callers.",
   "activation": {
     "onStartup": true
   },

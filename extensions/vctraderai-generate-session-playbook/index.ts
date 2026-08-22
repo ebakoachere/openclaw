@@ -2,14 +2,25 @@ import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 import { Type } from "typebox";
 import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
-// VC Trader AI: generate_session_playbook.
+// VC Trader AI: generate_session_playbook. DEAD ON THIS SURFACE.
 //
-// READ_ONLY per ADR 0078. Calls the BFF
-// `POST /api/v1/openclaw/playbooks/session` endpoint which computes a
-// per-trading-session playbook envelope (LONDON / NEW_YORK / TOKYO / etc.)
-// from existing catalogue + economic-calendar data and returns it verbatim.
-// No mutation - the BFF persists nothing on this path; the playbook is
-// rebuilt on each call.
+// Two measured facts, both against propfirm_manager as of 2026-08-22:
+//
+//  1. `generate_session_playbook` is in core/openclaw/allowlist.py's
+//     RETIRED_ENGINE_TOOLS and absent from the 133-entry ALLOWLIST.
+//  2. The path below, `POST /api/v1/openclaw/playbooks/session`, matches NO
+//     route on the assembled app (Starlette Match.NONE; positive controls
+//     POST /api/v1/openclaw/notifications/send and GET /api/v1/reports/daily
+//     both match FULL). So the call 404s.
+//
+// It was ALSO never read-only. This header used to say "the BFF persists
+// nothing on this path". The only implementation of the generator anywhere,
+// engine/agent/specialists/session_playbook.py, ends generate() with an
+// unconditional save_playbook -> `insert into research.session_playbooks ...`
+// + conn.commit(), and returns that row's id; generation spends an LLM call
+// (llm_provider / llm_model / generation_time_ms are columns on the row).
+// ADR 0078 defines read_only as "no side effects beyond an audit row" and does
+// not list this tool, so the ADR refuted the label rather than granting it.
 
 export const GENERATE_SESSION_PLAYBOOK_TOOL_NAME = "generate_session_playbook";
 
@@ -51,13 +62,16 @@ export async function runGenerateSessionPlaybook(
 export default defineToolPlugin({
   id: "vctraderai-generate-session-playbook",
   name: "VC Trader AI Generate Session Playbook",
-  description: "Read-only generator for a per-session trading playbook.",
+  description: "Session playbook generator - retired; its route no longer exists.",
   tools: (tool) => [
     tool({
       name: GENERATE_SESSION_PLAYBOOK_TOOL_NAME,
       label: "Generate Session Playbook",
       description:
-        "Compute and return a session-scoped trading playbook envelope. READ_ONLY per ADR 0078 - no mutation.",
+        "UNAVAILABLE - do not call. This tool is retired from the OpenClaw allowlist and the " +
+        "route it posts to (/api/v1/openclaw/playbooks/session) matches no route, so every call " +
+        "returns 404 and no playbook. It is also NOT read-only where it does run: the generator " +
+        "spends an LLM call and inserts a row into research.session_playbooks.",
       parameters: Type.Object({
         workspace_id: Type.String({
           description: "Workspace UUID (lowercase hex with dashes).",
@@ -65,7 +79,9 @@ export default defineToolPlugin({
         }),
         session: Type.String({
           description:
-            "Trading session identifier (e.g. LONDON, NEW_YORK, TOKYO). Must match a session enum returned by list_sessions.",
+            "london, new_york, tokyo or sydney (case-insensitive). Anything else - including " +
+            "every code list_sessions returns (ASIA, LDN, NY, TWENTYFOUR_HR) - is SILENTLY " +
+            "coerced to london with no error.",
           minLength: 1,
         }),
       }),

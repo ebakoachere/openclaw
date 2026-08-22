@@ -1,7 +1,7 @@
 {
   "id": "vctraderai-enqueue-backtest-worker-job",
   "name": "VC Trader AI Enqueue Backtest Worker Job (Propose)",
-  "description": "Stages a dispatch a backtest worker job. proposal for human review. Calls the propfirm_manager BFF at /api/v1/openclaw/stage with tool_name enqueue_backtest_worker_job. PROPOSE_ONLY per ADR 0078 - it never executes directly; the staged descriptor is reviewed + Applied in the chat.",
+  "description": "RETIRED: enqueue_backtest_worker_job was removed from the ADR 0078 allowlist (W10 B2). POST /api/v1/openclaw/stage refuses it with 403 openclaw_tool_forbidden before anything is persisted, so it stages nothing and cannot be proposed or applied.",
   "activation": {
     "onStartup": true
   },

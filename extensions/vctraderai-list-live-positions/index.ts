@@ -7,6 +7,14 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // READ_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). Calls
 // the workspace-scoped BFF read as the workspace owner (PFM_AGENT_TOKEN) and
 // returns the verbatim envelope.
+//
+// `include_closed` is INERT server-side: the route forwards it to
+// build_positions_individual -> build_positions, where it is declared and never
+// read; no repository implementation of list_open_positions /
+// list_broker_positions takes it, and DbLiveReadRepository drops flat /
+// zero-quantity rows via _is_open regardless. include_closed=true and =false
+// produce byte-identical output, so the flag is NOT offered to the model
+// (runListLivePositions still forwards one if a caller passes it).
 
 export const LIST_LIVE_POSITIONS_TOOL_NAME = "list_live_positions";
 
@@ -24,6 +32,7 @@ export type ListLivePositionsDeps = {
 
 export type ListLivePositionsParams = {
   account_id: string;
+  /** Accepted by the route and inert server-side; not exposed to the model. */
   include_closed?: boolean;
 };
 
@@ -63,15 +72,13 @@ export default defineToolPlugin({
       name: LIST_LIVE_POSITIONS_TOOL_NAME,
       label: "List Live Positions",
       description:
-        "List the signed-in user's live OPEN positions via the live read endpoints. READ_ONLY per ADR 0078 - no mutation. Scoped to the workspace owner.",
+        "List the signed-in user's live OPEN positions via the live read endpoints. Open positions ONLY — a closed position is never returned and this tool cannot show one, so it can neither confirm nor deny that a close happened. Each row carries source='broker' (an individual per-ticket broker read, with the venue's sl/tp) or source='ledger' (the netted fallback served when the broker read fails). READ_ONLY per ADR 0078 - no mutation. Scoped to the workspace owner.",
       parameters: Type.Object({
         account_id: Type.String({
-          description: "Live account id to read positions for.",
+          description:
+            "Live account id; list_live_accounts_for_deployment returns these as rows[].live_account_id.",
           minLength: 1,
         }),
-        include_closed: Type.Optional(
-          Type.Boolean({ description: "Include recently closed positions." }),
-        ),
       }),
       async execute(params, _config, context) {
         context.signal?.throwIfAborted();

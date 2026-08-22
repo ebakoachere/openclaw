@@ -82,12 +82,70 @@ describe("vctraderai-create-strategy", () => {
       })) as typeof globalThis.fetch;
     await expect(
       runCreateStrategy(
-        { intent_brief: "x", source_text: "def run(data, params=None, context=None):\n    return {}" },
+        {
+          // `name` is REQUIRED (see the block below); this call used to omit it,
+          // quietly modelling the very shape the BFF rejects with a 422.
+          name: "X",
+          intent_brief: "x",
+          source_text: "def run(data, params=None, context=None):\n    return {}",
+        },
         { fetchImpl },
       ),
     ).rejects.toMatchObject({
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });
+  });
+
+  // ---------------------------------------------------------------------
+  // WHAT WAS FALSE, AND WHY A GREEN SUITE HID IT.
+  //
+  // `name` was declared `Type.Optional(...)` with the description "Human-readable
+  // strategy name.", and the tool description named only source_text as required.
+  // On the agent path `name` is required, harder than source_text is:
+  //   - web_api/openclaw_internal/router.py
+  //     `_REGISTRY_CREATE_STRATEGY_REQUIRED = ("name", "source_text")`, checked
+  //     pre-dispatch as `not str(kwargs.get(key) or "").strip()` -> HTTP 422
+  //     `openclaw_registry_mutation_failed`, "create_strategy is missing required
+  //     field(s): name." Verified by running that predicate over omitted / None /
+  //     "" / "   " (all missing) and "My Strat" (not missing).
+  //   - Behind it, `create_strategy_tool(*, name: str, ...)` has NO default:
+  //     calling it without name raises TypeError. `source_text`, the one field
+  //     the schema DID mark required, defaults to None there.
+  // Every test above happened to pass a name, or (the 500 case) never reached a
+  // real server -- so a schema that told the model `name` was optional stayed
+  // green while a name-less call would 422 in production.
+  // ---------------------------------------------------------------------
+  const capturedTool = () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-create-strategy" });
+    plugin.register(captured.api);
+    return captured.tools[0] as {
+      description?: string;
+      parameters?: {
+        required?: string[];
+        properties?: Record<string, { description?: string }>;
+      };
+    };
+  };
+
+  it("declares name as required in the schema the model actually sees", () => {
+    const required = capturedTool().parameters?.required ?? [];
+    // Control: source_text was already required, so a passing `name` assertion
+    // is not passing because `required` is empty or unread.
+    expect(required).toContain("source_text");
+    expect(required).toContain("name");
+  });
+
+  it("says in the description that both name and source_text are required", () => {
+    const description = capturedTool().description ?? "";
+    expect(description.length).toBeGreaterThan(80);
+    expect(description).toMatch(/name AND source_text are both required/);
+    expect(description).toMatch(/422/);
+  });
+
+  it("names the refusal on the name parameter itself", () => {
+    const name = capturedTool().parameters?.properties?.name?.description ?? "";
+    expect(name).toMatch(/Required/);
+    expect(name).toMatch(/whitespace-only/);
   });
 });

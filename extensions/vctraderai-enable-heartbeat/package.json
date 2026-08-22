@@ -2,7 +2,7 @@
   "name": "@openclaw/vctraderai-enable-heartbeat",
   "version": "2026.6.30",
   "private": true,
-  "description": "Enable or update an Agent Alpha heartbeat policy through the guarded internal BFF route.",
+  "description": "Create an Agent Alpha heartbeat policy through the guarded internal BFF route (create-only; use update_heartbeat to change one). Accounts are optional (0..N).",
   "type": "module",
   "dependencies": {
     "typebox": "1.1.38"

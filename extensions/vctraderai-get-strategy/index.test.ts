@@ -19,7 +19,12 @@ describe("vctraderai-get-strategy", () => {
         strategy_id: "str-1",
         name: "trend_follower_v1",
       },
-      sources: ["postgres://core.strategies"],
+      // This fixture used to read ["postgres://core.strategies"], inventing a
+      // table that does not exist. The real tool's `sources` is produced by
+      // `_table_sources("strategy_registry.strategies", ...)`; a live run of the
+      // sibling update-preview path emitted exactly
+      // ["postgres:strategy_registry.strategies"] (one colon, no slashes).
+      sources: ["postgres:strategy_registry.strategies"],
     };
     const fetchImpl = (async () =>
       new Response(JSON.stringify(envelope), {
@@ -52,5 +57,47 @@ describe("vctraderai-get-strategy", () => {
       name: "BffRequestError",
       detail: { code: "bff_500", status: 500 },
     });
+  });
+
+  // ---------------------------------------------------------------------
+  // WHAT WAS FALSE, AND WHY A GREEN SUITE HID IT.
+  //
+  // The description read "a single strategy row from the propfirm_manager
+  // core.strategies catalogue". There is no core.strategies table: a ripgrep of
+  // the platform returns 0 occurrences while the control term
+  // strategy_registry.strategies returns 423 across 98 files, and the live
+  // introspection dump audit/2026-05-22/artifacts/table_list.txt enumerates all
+  // 16 core.* tables (asset_classes ... venues) with no `strategies` among them.
+  // `engine.agent.tools.registry_tools.get_strategy` reads the workspace-scoped
+  // registry head strategy_registry.strategies (+ strategy_versions, + the
+  // research.strategy_* manifests) and reports itself as
+  // postgres:strategy_registry.strategies.
+  //
+  // Nothing caught it because the tests only asserted URL shape and error
+  // plumbing -- and the happy-path FIXTURE ABOVE repeated the invented name back
+  // to itself as `["postgres://core.strategies"]`, so the lie was pinned by the
+  // suite rather than exposed by it.
+  // ---------------------------------------------------------------------
+  it("names the table it actually reads, not a table that does not exist", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-get-strategy" });
+    plugin.register(captured.api);
+    const { description = "" } = captured.tools[0] as { description?: string };
+    expect(description.length).toBeGreaterThan(80);
+    expect(description).not.toMatch(/core\.strategies/);
+    expect(description).toMatch(/strategy_registry\.strategies/);
+  });
+
+  it("describes the identifier forms the resolver really supports", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-get-strategy" });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    // PHASE 1 branches on _is_uuid(probe) and otherwise matches
+    // lower(coalesce(display_name, strategy_name)) -- unlike get_strategy_source,
+    // which is UUID-only.
+    const strategyId = tool.parameters?.properties?.strategy_id?.description ?? "";
+    expect(strategyId).toMatch(/UUID/);
+    expect(strategyId).toMatch(/case-insensitiv/i);
   });
 });

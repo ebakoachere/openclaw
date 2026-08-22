@@ -16,9 +16,20 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // both directions. propfirm_manager W10 B2 rebuilt the capability on a route
 // that exists (`/openclaw/deployment/portfolios`) and allowlisted the tool.
 //
-// "Portfolio" is the product's current word for the unit: N strategies run
-// together under ONE risk budget. The engine tables keep their trader_* names
-// because the live deployment path joins them; only this surface moves.
+// "Portfolio" is the product's current word for the unit: N strategies grouped
+// under ONE risk manager. The engine tables keep their trader_* names.
+//
+// THE ROWS ARE REAL; "FOR DEPLOYMENT" IS NOT. Binding a portfolio to a live
+// account requires a live.trader_deployments row, and no code path creates one:
+// ADR 0083 PR-8e-3 deleted build/assign/set, a repo-wide probe finds `insert
+// into live.trader_deployments` only in two test files, and the sole non-test
+// mutation is an UPDATE in record_runtime_heartbeat that no-ops with reason
+// "no_current_deployment" when no row exists. Running core/openclaw/allowlist.py
+// confirms the entire non-READ_ONLY deploy surface is exactly one tool -
+// deploy_strategy_to_account - which deploys ONE strategy version to ONE
+// account and writes strategy_registry.strategy_deployments instead. The same
+// dead table backs this read's own deployment_* / live_account_id columns, so
+// they never reflect anything deploy_strategy_to_account did.
 
 export const LIST_PORTFOLIOS_FOR_DEPLOYMENT_TOOL_NAME = "list_portfolios_for_deployment";
 
@@ -64,13 +75,14 @@ export async function runListPortfoliosForDeployment(
 export default defineToolPlugin({
   id: "vctraderai-list-portfolios-for-deployment",
   name: "VC Trader AI List Portfolios For Deployment",
-  description: "Read-only workspace-scoped tool: List portfolios eligible for deployment.",
+  description:
+    "Read-only workspace-scoped tool: list the owner's non-archived portfolios. Nothing deploys a portfolio as a unit.",
   tools: (tool) => [
     tool({
       name: LIST_PORTFOLIOS_FOR_DEPLOYMENT_TOOL_NAME,
       label: "List Portfolios For Deployment",
       description:
-        "List the portfolios you can deploy. A portfolio is N strategies run together under ONE risk budget, with a single risk manager. Returns each portfolio's id, name, how many enabled strategies it holds, its risk_manager_id, and -- when already deployed -- the live account and deployment state. Archived portfolios are excluded: this answers what you CAN deploy, not what exists. Scoped to the signed-in operator. READ_ONLY per ADR 0078 - no mutation.",
+        "List the owner's non-archived portfolios - N strategies grouped under ONE risk manager. Returns portfolio_id, name, enabled strategy_count, risk_manager_id, primary_timeframe_id. NOTHING DEPLOYS A PORTFOLIO: the only deploy tool is deploy_strategy_to_account, one strategy VERSION to one account, so treat this as inventory and never promise a portfolio-level deploy. The deployment_id/deployment_state/health_status/live_account_id/mt5_login columns come from the retired live.trader_deployments plane that no product code writes, so they never reflect a deploy_strategy_to_account deployment. No tool here expands a portfolio_id into its member strategies. READ_ONLY per ADR 0078.",
       parameters: Type.Object(
         {
           limit: Type.Optional(

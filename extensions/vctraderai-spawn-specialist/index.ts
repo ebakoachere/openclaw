@@ -11,6 +11,13 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 
 export const SPAWN_SPECIALIST_TOOL_NAME = "spawn_specialist";
 
+/**
+ * Keys the BFF refuses on the create/spawn CLAIM path
+ * (`_require_specialist_key` -> 422 `openclaw_specialist_reserved_key`).
+ */
+export const RESERVED_SPECIALIST_KEYS =
+  "gold_specialist, oversight, chat, heartbeat, pre_session, day_ahead, session_summary";
+
 export type SpawnSpecialistDeps = {
   fetchImpl?: typeof globalThis.fetch;
   bffFetch?: BffFetchFn;
@@ -54,7 +61,13 @@ export default defineToolPlugin({
       parameters: Type.Object(
         {
           specialist_key: Type.String({
-            description: "Specialist key to spawn, e.g. gold_specialist.",
+            description:
+              "Specialist key to spawn: one you created with create_specialist, or " +
+              "any key from list_specialists (`specialists[].specialist_key`). The " +
+              "reserved built-ins (" +
+              RESERVED_SPECIALIST_KEYS +
+              ") are refused: " +
+              "422 openclaw_specialist_reserved_key.",
             minLength: 1,
           }),
           instrument: Type.Optional(

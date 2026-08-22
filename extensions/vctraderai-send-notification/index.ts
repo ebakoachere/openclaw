@@ -46,11 +46,14 @@ export type SendNotificationDeps = {
 
 /**
  * One structured attachment riding ON the message. `kind` is a closed
- * vocabulary server-side (`web_api/notifications/inpage/schemas.py`), a list of
- * one today: "report".
+ * vocabulary server-side (`web_api/notifications/inpage/schemas.py`:
+ * `Literal["report", "dataset", "notebook"]`, mirrored by
+ * `_VALID_ATTACHMENT_KINDS` in that package's service.py). The service has a
+ * distinct resolution branch per kind and refuses the whole send if the id
+ * does not resolve in this workspace.
  */
 export type SendNotificationAttachment = {
-  kind: "report";
+  kind: "report" | "dataset" | "notebook";
   id: string;
 };
 
@@ -101,8 +104,8 @@ export default defineToolPlugin({
         "Surface an in-page notification to the trader. This writes STRAIGHT THROUGH - there is " +
         "no staged card and no Apply. It lands in the inbox; set email true to also send it as " +
         "an email, which reaches the trader only if they have email notifications switched on. " +
-        "Deliver a published report by attaching its id, not by pasting the report into the " +
-        "body: your message is the cover note, the report is the document.",
+        "Deliver a report, dataset or notebook by attaching its id, not by pasting the content " +
+        "into the body: your message is the cover note, the attachment is the document.",
       parameters: Type.Object(
         {
           title: Type.String({ description: "Notification title. Required.", minLength: 1 }),
@@ -135,11 +138,15 @@ export default defineToolPlugin({
             Type.Array(
               Type.Object(
                 {
-                  kind: Type.Literal("report", {
-                    description: "Attachment kind. Only 'report' is supported today.",
-                  }),
+                  kind: Type.Union(
+                    [Type.Literal("report"), Type.Literal("dataset"), Type.Literal("notebook")],
+                    { description: "What is attached: 'report', 'dataset' or 'notebook'." },
+                  ),
                   id: Type.String({
-                    description: "The report id returned by publish_report.",
+                    description:
+                      "report: the report_id publish_report returns. dataset: the name you " +
+                      "stored it under with store_dataset. notebook: the notebook_id from " +
+                      "list_notebooks.",
                     minLength: 1,
                   }),
                 },
@@ -147,8 +154,10 @@ export default defineToolPlugin({
               ),
               {
                 description:
-                  'Reports to deliver ON this message, e.g. [{"kind":"report","id":"<report_id>"}]. ' +
-                  "Publish the report first and attach the id it returns.",
+                  'Deliverables to ride ON this message, e.g. [{"kind":"report","id":"<report_id>"}]. ' +
+                  "Create it first and attach its id. Every attachment is resolved BEFORE the " +
+                  "message is written, so an id that is not in this workspace (or an archived " +
+                  "notebook) refuses the whole send with a 404 and nothing is delivered.",
               },
             ),
           ),

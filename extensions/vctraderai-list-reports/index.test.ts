@@ -59,6 +59,31 @@ describe("vctraderai-list-reports", () => {
     expect(request?.headers.get("x-openclaw-thread")).toBe("thread-42");
   });
 
+  // WHAT WAS FALSE: the description read "Check here BEFORE publishing a
+  // periodic report: a periodic template can only be filed once per period_key,
+  // and a duplicate is rejected outright." The sole dedupe is the partial unique
+  // index reports_periodic_dedupe_idx on (workspace_id, author_key, template,
+  // period_key) WHERE archived_at is null — author-scoped — while _LIST_SQL
+  // narrows on author_key only when the caller supplies it, so the prescribed
+  // check is workspace-wide against an author-scoped constraint. A specialist
+  // reading the PM's session_summary for today as its own duplicate would
+  // suppress a report the founder was expecting. WHY THE GREEN SUITE HID IT:
+  // these tests only ever asserted on the request URL and headers, so no
+  // assertion touched the sentence the model plans from.
+  it("does not tell the model a workspace-wide hit means the period is taken", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-list-reports" });
+    plugin.register(captured.api);
+    const description = (captured.tools[0] as unknown as { description: string }).description;
+    // Non-vacuity control: this really is the description carrying the filters.
+    expect(description).toMatch(/author_key/);
+    expect(description).not.toMatch(/a duplicate is rejected outright/);
+    expect(description).not.toMatch(/can only be filed once per period_key/);
+    // The corrected facts: the page spans every author by default, and the
+    // dedupe is scoped to one author.
+    expect(description).toMatch(/spans EVERY author unless you pass author_key/);
+    expect(description).toMatch(/dedupe is per author/);
+  });
+
   it("omits include_archived unless it was explicitly asked for", async () => {
     const urls: string[] = [];
     const fetchImpl = (async (input: RequestInfo | URL) => {

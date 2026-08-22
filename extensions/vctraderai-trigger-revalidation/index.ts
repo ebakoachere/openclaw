@@ -28,8 +28,10 @@ export type TriggerRevalidationDeps = {
 };
 
 export type TriggerRevalidationParams = {
-  strategy_id?: string;
-  trader_def_id?: string;
+  /** strategy_registry.strategy_deployments.deployment_id (XOR version_id). */
+  deployment_id?: string;
+  /** strategy_registry.strategy_versions.version_id (XOR deployment_id). */
+  version_id?: string;
   reason?: string;
   [key: string]: unknown;
 };
@@ -42,8 +44,18 @@ function readWorkspaceId(): string {
   return value;
 }
 
+// The summary is the text the HUMAN approves. It must name the target that will
+// actually be revalidated -- only deployment_id/version_id survive to the apply
+// adapter -- so a card with no target reads as untargeted instead of looking
+// correctly aimed and then failing target_required after approval.
 function buildSummary(params: TriggerRevalidationParams): string {
-  return `Revalidate strategy ${params.strategy_id ?? ""}`.trim();
+  if (params.deployment_id) {
+    return `Revalidate deployment ${params.deployment_id}`;
+  }
+  if (params.version_id) {
+    return `Revalidate strategy version ${params.version_id}`;
+  }
+  return "Revalidate (no deployment_id or version_id set - Apply will fail target_required)";
 }
 
 export async function runTriggerRevalidation(
@@ -78,12 +90,20 @@ export default defineToolPlugin({
       name: TRIGGER_REVALIDATION_TOOL_NAME,
       label: "Trigger Revalidation",
       description:
-        "Propose a strategy revalidation run. This STAGES a proposal for the human to review + Apply in the chat - it does NOT execute the action directly. PROPOSE_ONLY per ADR 0078.",
+        "Propose a revalidation of a deployed strategy or of a strategy version. Supply EXACTLY ONE of deployment_id or version_id: with neither, Apply fails target_required (400); with both, target_ambiguous (400). The target must already have a current expectation baseline or Apply fails no_current_baseline (409). Only deployment_id, version_id and reason reach the revalidation service - every other key is silently dropped at Apply. STAGES a proposal for the human to review + Apply in the chat; it never revalidates directly. PROPOSE_ONLY per ADR 0078.",
       parameters: Type.Object(
         {
-          strategy_id: Type.Optional(Type.String({ description: "Strategy id to revalidate." })),
-          trader_def_id: Type.Optional(
-            Type.String({ description: "Trader definition id to revalidate." }),
+          deployment_id: Type.Optional(
+            Type.String({
+              description:
+                "A strategy_registry.strategy_deployments id. NOT the deployment_id from list_current_deployments - that is a live.trader_deployments id from a different table and resolves to target_not_found (404).",
+            }),
+          ),
+          version_id: Type.Optional(
+            Type.String({
+              description:
+                "A strategy_registry.strategy_versions id - list_strategies returns one per row as `current_version_id`. A strategy id will NOT resolve here.",
+            }),
           ),
           reason: Type.Optional(
             Type.String({ description: "Why the revalidation is being proposed." }),

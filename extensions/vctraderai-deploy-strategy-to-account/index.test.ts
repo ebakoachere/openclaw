@@ -48,6 +48,106 @@ describe("vctraderai-deploy-strategy-to-account", () => {
     expect(captured.tools[0]).toMatchObject({ name: DEPLOY_STRATEGY_TO_ACCOUNT_TOOL_NAME });
   });
 
+  // ---------------------------------------------------------------------
+  // Description truth. Everything below this line asserts what the MODEL is
+  // told, not what the code does. The suite was fully green while all three
+  // of these sentences were false, because nothing in it had ever read
+  // `description` at all: the tests exercised the staging transport and the
+  // refusal paths, which were correct, and never the prose the model plans
+  // against. A tool that lies is worse than a missing one, so the prose is
+  // now pinned like any other contract.
+  // ---------------------------------------------------------------------
+
+  function registerAndDescribe(): {
+    description: string;
+    params: Record<string, { description?: string }>;
+  } {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-deploy-strategy-to-account",
+    });
+    plugin.register(captured.api);
+    // `AnyAgentTool` declares `description` optional, so a cast that demands it
+    // does not overlap and TS2352s. Widen to the real shape and default here --
+    // an empty description would otherwise pass a `not.toMatch` vacuously, which
+    // is the failure mode these guards exist to prevent.
+    const tool = captured.tools[0] as {
+      description?: string;
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const description = tool.description ?? "";
+    expect(description.length, "the tool registered no description").toBeGreaterThan(40);
+    return { description, params: tool.parameters?.properties ?? {} };
+  }
+
+  it("does not claim list_current_deployments can detect a duplicate deployment", () => {
+    const { description } = registerAndDescribe();
+    // WAS FALSE: "Call list_live_accounts_for_deployment and
+    // list_current_deployments first so you propose against a real account and
+    // do not duplicate a deployment that already exists."
+    // The Apply-time duplicate is TargetAlreadyAttachedError, raised from a
+    // SELECT over strategy_registry.strategy_deployments keyed on
+    // (workspace, strategy, version, target_kind, target_id). Meanwhile
+    // list_current_deployments reads live.trader_deployments, whose row shape
+    // has NO strategy_id and NO version_id, so it structurally cannot hold the
+    // triple the check compares. The model would see an empty result, conclude
+    // no duplicate exists, and stage a second deployment that Apply 400s.
+    expect(description).not.toMatch(/list_current_deployments/);
+    expect(description).not.toMatch(/do not duplicate/i);
+    // The honest replacement: there IS no pre-check on this surface.
+    expect(description).toMatch(/CANNOT pre-check/i);
+    expect(description).toMatch(/already-attached/i);
+  });
+
+  it("names the tool and field that actually supply strategy_id and version_id", () => {
+    const { description } = registerAndDescribe();
+    // list_strategies rows carry strategy_id + current_version_id.
+    // get_strategy returns identity and a `source_versions` list that selects
+    // version_label/source_kind/entry_function/is_active and NO version_id, so
+    // it cannot supply this parameter.
+    expect(description).toMatch(/list_strategies/);
+    expect(description).toMatch(/current_version_id/);
+    // The Apply-side refusals a model would otherwise walk into.
+    expect(description).toMatch(/lifecycle_stage is 'live'/);
+    expect(description).toMatch(/runtime_tag is 'nautilus'/);
+  });
+
+  it("warns that no readable account id is a valid account_id", () => {
+    const { params } = registerAndDescribe();
+    const accountId = params.account_id?.description ?? "";
+    // WAS FALSE: "Target account id. Source it from
+    // list_live_accounts_for_deployment."
+    // staged_apply.py passes account_id VERBATIM as target_id, and
+    // trg_strategy_deployments_polymorphic_fk accepts only a
+    // workspace_direct_broker_accounts id or a workspace_phase_links id.
+    // list_live_accounts_for_deployment returns live.accounts.live_account_id,
+    // an independent gen_random_uuid() space, so following the old sentence
+    // staged a T3 live-money card that died inside the Apply transaction AFTER
+    // the human's step-up - and the agent could not self-correct, because no
+    // tool it can call returns a usable id.
+    expect(accountId).not.toMatch(/Source it from list_live_accounts_for_deployment/);
+    expect(accountId).toMatch(/workspace_direct_broker_accounts/);
+    expect(accountId).toMatch(/workspace_phase_links/);
+    expect(accountId).toMatch(/live_account_id/);
+    expect(accountId).toMatch(/deploy-targets/);
+  });
+
+  it("describes risk_cap_override_pct as recorded, never as enforced", () => {
+    const { params } = registerAndDescribe();
+    const riskCap = params.risk_cap_override_pct?.description ?? "";
+    // WAS FALSE: "Optional per-deployment risk cap override, as a percentage.
+    // Omit to inherit the account's configured risk." - which reads as "supply
+    // it and the deployment is capped".
+    // The value is persisted to strategy_registry.strategy_deployments and
+    // echoed in render payloads, and that is all. _GOVERNED_DEPLOYMENTS_SQL
+    // (the resolver that arms a deployment) does not select the column, no
+    // engine code consumes it, and RiskCapOverrideAboveTemplateMaxError is
+    // exported but never raised in product code. The harm was a false safety
+    // claim presented to the human at the step-up they rely on.
+    expect(riskCap).not.toMatch(/risk cap override/i);
+    expect(riskCap).toMatch(/NOT ENFORCED/);
+    expect(riskCap).toMatch(/identical whether you set it or omit it/i);
+  });
+
   it("stages through the propose chokepoint and never calls a deploy route", async () => {
     const { fetchImpl, request } = captureFetch();
 

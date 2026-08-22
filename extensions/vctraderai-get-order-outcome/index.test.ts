@@ -72,4 +72,36 @@ describe("vctraderai-get-order-outcome", () => {
       detail: { code: "bff_403", status: 403 },
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // client_order_id is a DEAD handle and the description used to present it as one
+  // of three equals.
+  //
+  // The reader branches two ways -- idempotency_key -> the idempotency_key column,
+  // anything else -> payload->>'order_id' -- and client_order_id is aliased onto
+  // the second. The place path never writes a client_order_id into a ledger
+  // payload; _build_order_intent drops it before the broker. So the lookup always
+  // returns unknown.
+  //
+  // Combined with this tool's own "treat unknown as keep-polling, re-call until you
+  // see a terminal status", an agent that placed with a client_order_id and polls
+  // with it either loops forever or concludes the order was lost and re-places it,
+  // duplicating live risk.
+  it("marks client_order_id as dead rather than offering it as an equal handle", () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-get-order-outcome",
+    });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      description?: string;
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const description = tool.description ?? "";
+    expect(description.length).toBeGreaterThan(80);
+    expect(description).toMatch(/client_order_id NEVER resolves/);
+    expect(description).toMatch(/PREFER the idempotency_key/);
+    const param = tool.parameters?.properties?.client_order_id;
+    expect(param, "client_order_id is still accepted, and must be labelled").toBeDefined();
+    expect(param?.description ?? "").toMatch(/DEAD HANDLE/);
+  });
 });

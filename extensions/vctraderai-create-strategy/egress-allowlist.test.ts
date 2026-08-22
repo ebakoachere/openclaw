@@ -20,7 +20,13 @@ describe("vctraderai-create-strategy egress allowlist", () => {
       return new Response(JSON.stringify({}), { status: 200 });
     }) as typeof globalThis.fetch;
     await runCreateStrategy(
-      { intent_brief: "x", source_text: "def run(data, params=None, context=None):\n    return {}" },
+      {
+        // `name` is a required field on this tool (see index.test.ts); this
+        // fixture used to omit it.
+        name: "X",
+        intent_brief: "x",
+        source_text: "def run(data, params=None, context=None):\n    return {}",
+      },
       { fetchImpl },
     );
     expect(urls.length).toBeGreaterThan(0);
@@ -84,7 +90,13 @@ describe("vctraderai-create-strategy egress allowlist", () => {
     controller.abort();
     await expect(
       runCreateStrategy(
-        { intent_brief: "x", source_text: "def run(data, params=None, context=None):\n    return {}" },
+        {
+          // `name` is a required field on this tool (see index.test.ts); these
+          // egress fixtures used to omit it.
+          name: "X",
+          intent_brief: "x",
+          source_text: "def run(data, params=None, context=None):\n    return {}",
+        },
         { fetchImpl },
         controller.signal,
       ),

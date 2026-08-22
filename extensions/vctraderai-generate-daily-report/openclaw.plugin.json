@@ -1,12 +1,14 @@
 {
   "id": "vctraderai-generate-daily-report",
   "name": "VC Trader AI Generate Daily Report",
-  "description": "Read-only generator for the workspace daily trading report (computed; no mutation).",
+  "description": "Daily report generator - retired from the OpenClaw allowlist; its BFF route no longer exists.",
   "activation": {
     "onStartup": true
   },
   "contracts": {
-    "tools": ["generate_daily_report"]
+    "tools": [
+      "generate_daily_report"
+    ]
   },
   "configSchema": {
     "type": "object",

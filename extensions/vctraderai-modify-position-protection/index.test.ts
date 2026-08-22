@@ -96,4 +96,38 @@ describe("vctraderai-modify-position-protection", () => {
       detail: { code: "bff_403", status: 403 },
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // The LOCKED arm does not stage anything, and the description must say so.
+  //
+  // Measured in propfirm_manager, not recalled: ALLOWLIST has this tool as
+  // kind=ToolKind.EXECUTE with staged_action=None, and POST /api/v1/openclaw/stage
+  // refuses anything that is not PROPOSE_ONLY with a non-None staged_action
+  // (403 openclaw_tool_not_propose_only, web_api/openclaw_internal/router.py:994).
+  // The LOCKED arm returns AgentExecuteOutcome(downgraded_to_staged=True,
+  // status=STATUS_DOWNGRADED) and writes NO row. The platform's own route comment
+  // says it plainly: "on LOCKED it DOWNGRADES (notify-only -- place has no
+  // Appliable staged-card)".
+  //
+  // The field is called downgraded_to_staged, which is where the belief came from.
+  // Until 2026-08-22 the description told the model the action "downgrades to a
+  // staged card the owner approves", so on a locked window -- during a halt, which
+  // is exactly when de-risking matters -- the model would tell the owner the action
+  // was staged and awaiting approval, and stand down. No card existed. Nothing was
+  // pending. The action simply did not happen.
+  it("never tells the model a locked window produces a card to approve", () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-modify-position-protection",
+    });
+    plugin.register(captured.api);
+    const { description = "" } = captured.tools[0] as { description?: string };
+    // Non-vacuity: assert we are looking at a real description before asserting
+    // what it does not contain. `not.toMatch` on an empty string passes.
+    expect(description.length).toBeGreaterThan(80);
+    expect(description).not.toMatch(/staged card/i);
+    expect(description).not.toMatch(/downgrade to a staged/i);
+    // And it must say what IS true, so the model has something to tell the owner.
+    expect(description).toMatch(/NOTHING is staged for approval/);
+    expect(description).toMatch(/lock_reason/);
+  });
 });

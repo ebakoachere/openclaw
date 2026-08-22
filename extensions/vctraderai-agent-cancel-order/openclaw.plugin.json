@@ -1,7 +1,7 @@
 {
   "id": "vctraderai-agent-cancel-order",
   "name": "VC Trader AI Agent Cancel Order",
-  "description": "Autonomously cancel a live working order while the owner's autonomous-unlock window is open; otherwise downgrade to a staged card. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN) at /api/v1/workspaces/{ws}/live/orders/{order_id}/agent-cancel.",
+  "description": "Autonomously cancel a live working order while the owner's autonomous-unlock window is open; otherwise the call does not go through and NOTHING is staged for approval (execution_status 'downgraded' + lock_reason); the order stays live. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN) at /api/v1/workspaces/{ws}/live/orders/{order_id}/agent-cancel.",
   "activation": {
     "onStartup": true
   },

@@ -109,7 +109,7 @@ describe("vctraderai-prop-rule-headroom", () => {
   it("describes itself as static thresholds only and never promises live room", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-prop-rule-headroom" });
     plugin.register(captured.api);
-    const description = String(captured.tools[0]?.description ?? "");
+    const description = captured.tools[0]?.description ?? "";
     // The retired lie must not come back in any form.
     expect(description).not.toMatch(/room remaining against each prop-firm rule/i);
     expect(description).not.toMatch(/returns the room remaining/i);

@@ -66,8 +66,12 @@ describe("vctraderai-send-notification", () => {
     const attachments = parameters?.properties?.attachments;
     const item = attachments?.type === "array" ? attachments.items : attachments?.anyOf?.[0]?.items;
     const kind = item?.properties?.kind;
-    if (!kind) return [];
-    if (Array.isArray(kind.enum)) return kind.enum.map(String);
+    if (!kind) {
+      return [];
+    }
+    if (Array.isArray(kind.enum)) {
+      return kind.enum.map(String);
+    }
     if (Array.isArray(kind.anyOf)) {
       return kind.anyOf.map((s: any) => String(s.const ?? s.enum?.[0]));
     }
@@ -102,7 +106,7 @@ describe("vctraderai-send-notification", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-send-notification" });
     plugin.register(captured.api);
     const parameters = captured.tools[0].parameters as any;
-    expect(attachmentKindValues(parameters).sort()).toEqual(["dataset", "notebook", "report"]);
+    expect(attachmentKindValues(parameters).toSorted()).toEqual(["dataset", "notebook", "report"]);
   });
 
   it("does not claim report is the only attachment kind", () => {

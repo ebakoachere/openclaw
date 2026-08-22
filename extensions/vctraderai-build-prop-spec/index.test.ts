@@ -30,7 +30,7 @@ describe("vctraderai-build-prop-spec", () => {
       id: "vctraderai-build-prop-spec",
     });
     plugin.register(captured.api);
-    const description = String(captured.tools[0]?.description ?? "");
+    const description = captured.tools[0]?.description ?? "";
     // The retired lie: "fee" listed as a composed envelope member.
     expect(description).not.toMatch(/profit target, max drawdown, fee, refund policy/i);
     // The corrected fact plus the reasoning it must not be used for.

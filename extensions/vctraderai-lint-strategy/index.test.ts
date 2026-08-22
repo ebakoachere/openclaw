@@ -166,7 +166,7 @@ describe("vctraderai-lint-strategy", () => {
       { fetchImpl },
     ).then(() => {
       expect(capturedBody).toBeDefined();
-      expect(Object.keys(capturedBody ?? {}).sort()).toEqual(["entry_function", "source"]);
+      expect(Object.keys(capturedBody ?? {}).toSorted()).toEqual(["entry_function", "source"]);
       expect(capturedBody).not.toHaveProperty("runtime_tag");
     });
   });

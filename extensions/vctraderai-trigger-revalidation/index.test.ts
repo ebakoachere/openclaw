@@ -46,7 +46,7 @@ describe("vctraderai-trigger-revalidation", () => {
     const props = (captured.tools[0] as any).parameters.properties;
 
     // The two ids create_revalidation actually resolves.
-    expect(Object.keys(props).sort()).toEqual(["deployment_id", "reason", "version_id"]);
+    expect(Object.keys(props).toSorted()).toEqual(["deployment_id", "reason", "version_id"]);
 
     // The dropped ids must not be advertised as targets again.
     expect(props).not.toHaveProperty("strategy_id");

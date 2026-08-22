@@ -66,11 +66,17 @@ describe("vctraderai-deploy-strategy-to-account", () => {
       id: "vctraderai-deploy-strategy-to-account",
     });
     plugin.register(captured.api);
+    // `AnyAgentTool` declares `description` optional, so a cast that demands it
+    // does not overlap and TS2352s. Widen to the real shape and default here --
+    // an empty description would otherwise pass a `not.toMatch` vacuously, which
+    // is the failure mode these guards exist to prevent.
     const tool = captured.tools[0] as {
-      description: string;
-      parameters: { properties: Record<string, { description?: string }> };
+      description?: string;
+      parameters?: { properties?: Record<string, { description?: string }> };
     };
-    return { description: tool.description, params: tool.parameters.properties };
+    const description = tool.description ?? "";
+    expect(description.length, "the tool registered no description").toBeGreaterThan(40);
+    return { description, params: tool.parameters?.properties ?? {} };
   }
 
   it("does not claim list_current_deployments can detect a duplicate deployment", () => {

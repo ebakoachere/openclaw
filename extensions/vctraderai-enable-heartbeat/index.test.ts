@@ -22,7 +22,7 @@ describe("vctraderai-enable-heartbeat", () => {
   }
 
   function schema(): any {
-    return captured().parameters as any;
+    return captured().parameters;
   }
 
   function toolDescription(): string {

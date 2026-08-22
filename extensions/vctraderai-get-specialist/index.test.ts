@@ -61,7 +61,7 @@ describe("vctraderai-get-specialist", () => {
   });
 
   it("lists exactly the seven keys that can never be registered", () => {
-    expect(RESERVED_SPECIALIST_KEYS.split(", ").sort()).toEqual([
+    expect(RESERVED_SPECIALIST_KEYS.split(", ").toSorted()).toEqual([
       "chat",
       "day_ahead",
       "gold_specialist",

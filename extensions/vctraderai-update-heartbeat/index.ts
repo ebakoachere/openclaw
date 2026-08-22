@@ -103,7 +103,12 @@ export default defineToolPlugin({
           model_route_key: Type.Optional(
             Type.String({ description: "Model route key, usually heartbeat." }),
           ),
-          instructions: Type.Optional(Type.String({ description: "Heartbeat instructions." })),
+          instructions: Type.Optional(
+            Type.String({
+              description:
+                "The standing brief each wake receives. OMIT to keep the current one -- every field on this tool is coalesced server-side, so absent means unchanged. Sending an EMPTY STRING is not the same as omitting: it is trimmed and then written, silently erasing the brief the policy was running on.",
+            }),
+          ),
           price_symbols: Type.Optional(Type.Array(Type.String())),
           provider_config: Type.Optional(Type.Record(Type.String(), Type.Any())),
         },

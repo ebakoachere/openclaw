@@ -138,4 +138,35 @@ describe("vctraderai-update-heartbeat", () => {
       /PFM_WORKSPACE_ID is not set/,
     );
   });
+
+  // ---------------------------------------------------------------------------
+  // `instructions: ""` is a data-loss path and nothing said so.
+  //
+  // Every field on this tool is coalesced server-side
+  // (heartbeat_policy_repository.update_policy: `set instructions =
+  // coalesce(%(instructions)s, instructions)`), so OMITTING a field keeps it.
+  // An empty string is not NULL: heartbeat_driver.update_heartbeat does
+  // `str(instructions).strip() if instructions is not None else None`, so ""
+  // survives as "" and coalesce writes it. The standing brief the policy was
+  // running on is erased, with a 200 and no warning.
+  //
+  // The old description was "Heartbeat instructions." -- four words that make
+  // sending "" look like a way to say "no change". The sibling enable_heartbeat
+  // had this fixed in the audit wave; this plugin kept the weak copy, which is
+  // how a per-tool sweep misses a per-FAMILY fact.
+  it("warns that an empty instructions string erases the brief, unlike omitting it", () => {
+    const captured = createCapturedPluginRegistration({
+      id: "vctraderai-update-heartbeat",
+    });
+    plugin.register(captured.api);
+    const tool = captured.tools[0] as {
+      parameters?: { properties?: Record<string, { description?: string }> };
+    };
+    const instructions = tool.parameters?.properties?.instructions?.description ?? "";
+    // Non-vacuity: a missing param would make every assertion below pass on "".
+    expect(instructions.length).toBeGreaterThan(80);
+    expect(instructions).toMatch(/OMIT to keep the current one/);
+    expect(instructions).toMatch(/EMPTY STRING is not the same as omitting/);
+    expect(instructions).toMatch(/erasing/i);
+  });
 });

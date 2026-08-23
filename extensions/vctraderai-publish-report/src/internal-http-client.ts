@@ -16,7 +16,13 @@
 // The helper is vendored per-plugin rather than shared: the openclaw extensions
 // boundary forbids cross-extension `src/` imports.
 
-const ALLOWLIST_PATH_PATTERN = /^\/api\/v1\/workspaces\/[0-9a-f-]+\/reports$/;
+// W11: publish_report absorbed revise_report via `supersedes`, so this guard
+// now admits TWO routes and no more. Written as an explicit alternation
+// rather than a trailing `.*` -- a wildcard here would let the tool reach
+// every future /reports/{id}/<verb> including retract, which is a DIFFERENT
+// decision (D-22: correct or retract, never both by accident).
+const ALLOWLIST_PATH_PATTERN =
+  /^\/api\/v1\/workspaces\/[0-9a-f-]+\/reports(\/[0-9a-zA-Z-]+\/revise)?$/;
 
 const DEFAULT_BFF_BASE_URL = "http://web_api.local";
 

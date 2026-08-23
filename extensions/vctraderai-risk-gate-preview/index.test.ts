@@ -140,3 +140,39 @@ describe("vctraderai-risk-gate-preview", () => {
     });
   });
 });
+
+describe("the description tells the truth about the fabricated quote", () => {
+  // W11 tool-truth pass. The preview builds its quote from the caller's OWN
+  // entry_price when market_mid is omitted (risk_gate_preview.py:124), so the
+  // price-sanity deviation is exactly zero by construction for any symbol at
+  // any price. Measured: EURUSD@1.16, XAUUSD@2400 and BTCUSD@60000 all return
+  // APPROVED at "0.000% of mid".
+  //
+  // The description used to call this "the REAL 14-check gate" and say nothing
+  // about it. That is the same class of claim as the 54 the 08-22 audit found:
+  // true-sounding, and wrong in the direction that costs money.
+  const toolDescription = (): string => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-risk-gate-preview" });
+    plugin.register(captured.api);
+    return String(captured.tools[0]?.description ?? "");
+  };
+
+  it("names the zero-by-construction deviation", () => {
+    const d = toolDescription();
+    expect(d).toContain("zero by construction");
+    expect(d).toContain("market_mid");
+  });
+
+  it("does NOT call the preview the real gate", () => {
+    // The exact phrase that made the old copy false.
+    expect(toolDescription()).not.toContain("the real 14-check pre-trade risk gate");
+  });
+
+  it("says the other readers are permissive, so a pass is not a verdict", () => {
+    const d = toolDescription();
+    expect(d.toLowerCase()).toContain("permissive");
+    // Positive control: the description really is being read and is substantial,
+    // so the assertions above cannot pass against an empty string.
+    expect(d.length).toBeGreaterThan(400);
+  });
+});

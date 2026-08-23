@@ -41,7 +41,7 @@ describe("vctraderai-message-pm", () => {
       {
         bffFetch: async (p, options) => {
           path = p;
-          headers = (options?.headers ?? {}) as Record<string, string>;
+          headers = options?.headers ?? {};
           body = (options?.body ?? {}) as Record<string, unknown>;
           return {};
         },

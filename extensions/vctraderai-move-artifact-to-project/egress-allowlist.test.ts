@@ -45,7 +45,10 @@ describe("vctraderai-move-artifact-to-project egress allowlist", () => {
         { status: 200 },
       );
     }) as typeof globalThis.fetch;
-    await runMoveArtifactToProject({}, { fetchImpl });
+    await runMoveArtifactToProject(
+      { artifact_type: "experiment_run", artifact_id: "run-7", to_project_id: "proj-b" },
+      { fetchImpl },
+    );
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
       expect(new URL(url).pathname).toMatch(VCTRADERAI_BFF_ALLOWLIST_PATH_PATTERN);

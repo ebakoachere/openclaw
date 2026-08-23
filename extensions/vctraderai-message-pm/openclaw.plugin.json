@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-message-pm",
+  "name": "VC Trader AI Message PM",
+  "description": "Send the PM a written message with a subject and a body. It lands in the PM own thread and is read on its next natural turn: it does NOT wake the PM and cannot be made to. Use it for observations and status that are not a trade opinion; a trade opinion is emit_specialist_signal. A workspace with no PM heartbeat policy has nowhere to deliver, and that is an error rather than a silent success.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "message_pm"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

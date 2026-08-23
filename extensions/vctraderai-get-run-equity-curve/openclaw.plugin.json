@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-get-run-equity-curve",
+  "name": "VC Trader AI Get Run Equity Curve",
+  "description": "Equity curve for one experiment run, returned with its LINEAGE and its metrics. Always report the lineage alongside the curve: a curve shown without it reads as authoritative when it may be derived or reconstructed.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "get_run_equity_curve"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

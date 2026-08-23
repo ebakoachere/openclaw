@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-create-project",
+  "name": "VC Trader AI Create Project",
+  "description": "Create a workspace project. Ownership provenance is derived by the server from the caller credential and is never read from the request, so a project created here is always recorded as agent-authored.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "create_project"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

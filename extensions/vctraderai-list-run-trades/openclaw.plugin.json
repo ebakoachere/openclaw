@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-list-run-trades",
+  "name": "VC Trader AI List Run Trades",
+  "description": "Per-trade audit rows for one experiment run, cursor-paginated at 100 per page and 500 maximum, filterable by outcome and by time range.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "list_run_trades"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

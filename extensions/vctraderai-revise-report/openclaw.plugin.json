@@ -1,8 +1,0 @@
-{
-  "id": "vctraderai-revise-report",
-  "name": "VC Trader AI Revise Report",
-  "description": "Workspace-scoped report revision tool. Files a superseding report; the original is never edited.",
-  "activation": { "onStartup": true },
-  "contracts": { "tools": ["revise_report"] },
-  "configSchema": { "type": "object", "additionalProperties": false, "properties": {} }
-}

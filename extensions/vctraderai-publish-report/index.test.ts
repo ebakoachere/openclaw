@@ -1,6 +1,7 @@
 import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import plugin, { PUBLISH_REPORT_TOOL_NAME, runPublishReport } from "./index.js";
+import { VCTRADERAI_REPORTS_ALLOWLIST_PATH_PATTERN } from "./src/internal-http-client.js";
 
 const WORKSPACE_ID = "11111111-2222-3333-4444-555555555555";
 
@@ -120,5 +121,87 @@ describe("vctraderai-publish-report", () => {
     expect(names).not.toContain("author_kind");
     expect(names).not.toContain("author_key");
     expect(names).not.toContain("author_display_name");
+  });
+});
+
+describe("supersedes routes to the revise verb", () => {
+  const originalWorkspace = process.env.PFM_WORKSPACE_ID;
+  beforeEach(() => {
+    process.env.PFM_WORKSPACE_ID = "11111111-2222-3333-4444-555555555555";
+  });
+  afterEach(() => {
+    if (originalWorkspace === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = originalWorkspace;
+    }
+  });
+
+  // W11: publish_report absorbed revise_report. Two tools whose schemas differed
+  // by ONE field cost a selection decision every turn and carried the whole block
+  // vocabulary twice (~1,100 tokens). The merge is only safe if the routing is
+  // exact, so it is pinned in both directions.
+  const DOC = { blocks: [{ k: "lede", text: "x" }] };
+
+  it("posts to /reports when supersedes is absent", async () => {
+    let path = "";
+    let body: Record<string, unknown> = {};
+    await runPublishReport(
+      { template: "research_memo", title: "t", body: DOC },
+      {
+        bffFetch: async (p, options) => {
+          path = p;
+          body = (options?.body ?? {}) as Record<string, unknown>;
+          return {};
+        },
+      },
+    );
+    expect(path).toMatch(/\/reports$/);
+    expect(Object.keys(body)).not.toContain("supersedes");
+  });
+
+  it("posts to /reports/{id}/revise when supersedes is set, and strips it", async () => {
+    let path = "";
+    let body: Record<string, unknown> = {};
+    await runPublishReport(
+      { template: "research_memo", title: "t", body: DOC, supersedes: "rep-42" },
+      {
+        bffFetch: async (p, options) => {
+          path = p;
+          body = (options?.body ?? {}) as Record<string, unknown>;
+          return {};
+        },
+      },
+    );
+    expect(path).toMatch(/\/reports\/rep-42\/revise$/);
+    // The revise route does not accept `supersedes`; forwarding it would 422.
+    expect(Object.keys(body)).not.toContain("supersedes");
+  });
+
+  it("treats a BLANK supersedes as absent rather than routing to /reports//revise", async () => {
+    let path = "";
+    await runPublishReport(
+      { template: "research_memo", title: "t", body: DOC, supersedes: "   " },
+      {
+        bffFetch: async (p) => {
+          path = p;
+          return {};
+        },
+      },
+    );
+    expect(path).toMatch(/\/reports$/);
+  });
+
+  it("the egress guard admits BOTH routes and nothing else under /reports", () => {
+    const ws = "11111111-2222-3333-4444-555555555555";
+    expect(`/api/v1/workspaces/${ws}/reports`).toMatch(VCTRADERAI_REPORTS_ALLOWLIST_PATH_PATTERN);
+    expect(`/api/v1/workspaces/${ws}/reports/rep-42/revise`).toMatch(
+      VCTRADERAI_REPORTS_ALLOWLIST_PATH_PATTERN,
+    );
+    // retract is a DIFFERENT decision (D-22: correct or retract). A trailing
+    // wildcard would have admitted it silently; the alternation must not.
+    expect(`/api/v1/workspaces/${ws}/reports/rep-42/retract`).not.toMatch(
+      VCTRADERAI_REPORTS_ALLOWLIST_PATH_PATTERN,
+    );
   });
 });

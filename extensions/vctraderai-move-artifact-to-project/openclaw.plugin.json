@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-move-artifact-to-project",
+  "name": "VC Trader AI Move Artifact To Project",
+  "description": "Move an experiment run, a walkforward run or a notebook into a different project in the same workspace. A notebook move needs its CURRENT project id as well, because the route is nested under it; list the notebooks first if you do not have it. The move is recorded as a durable audit event carrying both the source and the destination project.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "move_artifact_to_project"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

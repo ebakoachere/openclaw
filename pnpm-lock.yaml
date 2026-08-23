@@ -1733,6 +1733,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-close-position-partial:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-consume-agent-signal:
     dependencies:
       typebox:
@@ -1760,6 +1773,19 @@ importers:
         version: link:../..
 
   extensions/vctraderai-create-notebook:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-create-project:
     dependencies:
       typebox:
         specifier: 1.1.38
@@ -2344,6 +2370,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-get-run-equity-curve:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-get-run-metrics:
     dependencies:
       typebox:
@@ -2734,6 +2773,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-list-projects:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-list-prop-firm-challenges:
     dependencies:
       typebox:
@@ -2774,6 +2826,32 @@ importers:
         version: link:../..
 
   extensions/vctraderai-list-risk-managers:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-list-run-folds:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-list-run-trades:
     dependencies:
       typebox:
         specifier: 1.1.38
@@ -2968,6 +3046,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-place-bracket:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-position-size-calculator:
     dependencies:
       typebox:
@@ -3125,6 +3216,19 @@ importers:
         version: link:../..
 
   extensions/vctraderai-set-model-route:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-set-trailing-stop:
     dependencies:
       typebox:
         specifier: 1.1.38

@@ -122,7 +122,7 @@ export default defineToolPlugin({
       name: RISK_GATE_PREVIEW_TOOL_NAME,
       label: "Risk Gate Preview",
       description:
-        "Dry-run the real 14-check pre-trade risk gate for a hypothetical order; returns the per-check pass/fail matrix + the blocking check. Provide the account_id, instrument and direction; optionally strategy_id, entry_price, stop_loss_price, take_profit_price, quantity, market_mid, account_status and a strategy_symbol_allowlist. Nothing is executed; this only evaluates the gate.",
+        'Dry-run the 14 pre-trade risk-gate checks against a hypothetical order and see EVERY check at once instead of only the first rejection. Provide account_id, instrument and direction; optionally strategy_id, entry_price, stop_loss_price, take_profit_price, quantity, market_mid, account_status and strategy_symbol_allowlist. Nothing is executed. TWO THINGS A PASS DOES NOT MEAN. (1) Unless you pass market_mid, the preview builds its quote FROM YOUR OWN entry_price, so the price-sanity deviation is exactly zero by construction for any symbol at any price -- that check carries no information at all, and an APPROVE on it is not evidence your price is sane. Pass market_mid to make it mean something. (2) Every other reader is a permissive fresh-account stub, so the caps arithmetic shows the SHAPE of the gate, not the verdict your live account state would produce. Use it for order shape and for which check name fires first; never relay it as "the gate approved this".',
       parameters: Type.Object({
         account_id: Type.String({
           description: "The account id the hypothetical order would run against.",
@@ -147,7 +147,10 @@ export default defineToolPlugin({
           Type.Number({ description: "Optional order quantity (units/lots)." }),
         ),
         market_mid: Type.Optional(
-          Type.Number({ description: "Optional current market mid price for the instrument." }),
+          Type.Number({
+            description:
+              "Current market mid price. WITHOUT it the preview centres its quote on YOUR OWN entry_price, so the price-sanity deviation is exactly zero by construction and that check tells you nothing. Supply a real mid whenever you have one.",
+          }),
         ),
         account_status: Type.Optional(
           Type.String({ description: "Optional account status to evaluate the gate against." }),

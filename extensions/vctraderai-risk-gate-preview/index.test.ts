@@ -154,7 +154,7 @@ describe("the description tells the truth about the fabricated quote", () => {
   const toolDescription = (): string => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-risk-gate-preview" });
     plugin.register(captured.api);
-    return String(captured.tools[0]?.description ?? "");
+    return captured.tools[0]?.description ?? "";
   };
 
   it("names the zero-by-construction deviation", () => {

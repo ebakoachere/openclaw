@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-list-projects",
+  "name": "VC Trader AI List Projects",
+  "description": "List the workspace projects, cursor-paginated at 20 per page and 100 maximum. Archived projects are excluded unless include_archived is set.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "list_projects"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

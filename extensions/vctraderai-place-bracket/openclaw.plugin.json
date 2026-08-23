@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-place-bracket",
+  "name": "VC Trader AI Place Bracket",
+  "description": "Publish a bracket entry with a stop-loss AND a take-profit, both mandatory. A success returns accepted_queued, which is NOT executed: a runtime node runs the full pre-trade risk gate and submits to the broker afterwards. Poll the minted idempotency_key for the real outcome and never report a fill from this response.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "place_bracket"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

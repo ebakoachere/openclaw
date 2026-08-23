@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-close-position-partial",
+  "name": "VC Trader AI Close Position Partial",
+  "description": "Scale out of a live OPEN position by an explicit volume in LOTS while the owner autonomous-unlock window is open. When the window is locked it downgrades and returns lock_reason, and NO card is created for anyone to approve.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "close_position_partial"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

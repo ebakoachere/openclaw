@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-set-trailing-stop",
+  "name": "VC Trader AI Set Trailing Stop",
+  "description": "Ask the broker to attach a server-side trailing stop to a live position. A success means the broker ACCEPTED the request, never that the trail is active: server-side trailing is broker-dependent and is not proven on the live servers. Blocks during a durable halt, because attaching a trail is not de-risking.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "set_trailing_stop"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

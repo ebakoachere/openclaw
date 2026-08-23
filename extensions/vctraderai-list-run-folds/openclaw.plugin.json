@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-list-run-folds",
+  "name": "VC Trader AI List Run Folds",
+  "description": "Per-fold walkforward summaries for one run, cursor-paginated at 50 per page and 200 maximum. Read the folds before trusting an aggregate: a headline metric can hide a single fold carrying the whole result.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "list_run_folds"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

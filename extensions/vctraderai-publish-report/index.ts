@@ -29,6 +29,8 @@ export type ReportStat = {
 };
 
 export type PublishReportParams = {
+  /** When set, file this as a REVISION of that report id instead of a new report. */
+  supersedes?: string;
   template: string;
   title: string;
   body: { blocks: unknown[] };
@@ -79,7 +81,19 @@ export function assertBlockDocument(toolName: string, body: unknown): void {
   }
 }
 
-/** Files a new report in the workspace library. Publishing is NOT delivering. */
+/** Files a report. With `supersedes`, files it as a REVISION of that one.
+ *
+ * W11: this absorbed `revise_report`, which took the same 22 parameters plus a
+ * report id and posted to a different route. Two tools whose schemas differ by
+ * one field cost the model a selection decision every turn and cost the prompt
+ * roughly 1,100 tokens for the duplicate vocabulary -- the block document
+ * description is the bulk of both, and it was carried twice.
+ *
+ * `retract_report` is deliberately NOT absorbed: it takes an id and a reason,
+ * shares nothing else, and retracting is a different decision from publishing
+ * (D-22: correct or retract, never delete). Merging it would have been merging
+ * on the word "report" rather than on the shape.
+ */
 export async function runPublishReport(
   params: PublishReportParams,
   deps: PublishReportDeps = {},
@@ -88,9 +102,22 @@ export async function runPublishReport(
   assertBlockDocument(PUBLISH_REPORT_TOOL_NAME, params.body);
   const bffFetch =
     deps.bffFetch ?? createBffFetch({ fetchImpl: deps.fetchImpl, threadId: deps.threadId });
-  return bffFetch(`/api/v1/workspaces/${requireWorkspaceId()}/reports`, {
+  const workspaceId = requireWorkspaceId();
+  const supersedes = (params.supersedes ?? "").trim();
+  if (supersedes.length > 0) {
+    const { supersedes: _s, ...payload } = params;
+    return bffFetch(`/api/v1/workspaces/${workspaceId}/reports/${supersedes}/revise`, {
+      method: "POST",
+      body: payload,
+      signal,
+    });
+  }
+  // A blank-but-present supersedes must not be forwarded as a field the publish
+  // route does not accept; strip it on this arm too.
+  const { supersedes: _blank, ...payload } = params;
+  return bffFetch(`/api/v1/workspaces/${workspaceId}/reports`, {
     method: "POST",
-    body: params,
+    body: payload,
     signal,
   });
 }
@@ -116,15 +143,23 @@ export const REPORT_BODY_DESCRIPTION = [
 export default defineToolPlugin({
   id: "vctraderai-publish-report",
   name: "VC Trader AI Publish Report",
-  description: "File a structured report in the authenticated workspace's report library.",
+  description:
+    "File a structured report in the authenticated workspace's report library, or revise one by passing supersedes.",
   tools: (tool) => [
     tool({
       name: PUBLISH_REPORT_TOOL_NAME,
       label: "Publish Report",
       description:
-        'Publish a structured report to this workspace\'s report library. Required: template, title and body. PUBLISHING IS NOT DELIVERING - this files the report and returns delivered: false together with the new report_id; nothing reaches the inbox until you choose to send it. To put it in front of the reader now, follow this call with send_notification carrying attachments=[{"kind": "report", "id": <report_id>}] and a short cover message saying what the report found. A published report is IMMUTABLE: to correct one call revise_report, which files a replacement and archives the original; to withdraw one call retract_report. Authorship is stamped by the server from your own identity, so there is no author field to supply. Templates: day_ahead_outlook, pre_session_briefing, session_summary and performance_review are PERIODIC and therefore REQUIRE period_key. Dedupe is per AUTHOR: re-filing a template+period_key you already filed returns 409 report_already_published (use revise_report instead), but another author\'s report for the same period does NOT block yours - a match in list_reports is not necessarily yours. backtest_result and research_memo are ad-hoc and must NOT carry a period_key. Any facet you leave unset defaults from the template. The workspace is capped at five publishes per five minutes.',
+        'Publish a structured report to this workspace\'s report library. Required: template, title and body. PUBLISHING IS NOT DELIVERING - this files the report and returns delivered: false together with the new report_id; nothing reaches the inbox until you choose to send it. To put it in front of the reader now, follow this call with send_notification carrying attachments=[{"kind": "report", "id": <report_id>}] and a short cover message saying what the report found. A published report is IMMUTABLE: to correct one, call this tool again with supersedes=<the report id>, which files a replacement and archives the original; to withdraw one call retract_report. Authorship is stamped by the server from your own identity, so there is no author field to supply. Templates: day_ahead_outlook, pre_session_briefing, session_summary and performance_review are PERIODIC and therefore REQUIRE period_key. Dedupe is per AUTHOR: re-filing a template+period_key you already filed returns 409 report_already_published (pass supersedes=<that report id> instead), but another author\'s report for the same period does NOT block yours - a match in list_reports is not necessarily yours. backtest_result and research_memo are ad-hoc and must NOT carry a period_key. Any facet you leave unset defaults from the template. The workspace is capped at five publishes per five minutes.',
       parameters: Type.Object(
         {
+          supersedes: Type.Optional(
+            Type.String({
+              minLength: 1,
+              description:
+                "Report id this one REPLACES. Omit to file a NEW report. Set it to file a REVISION: the replacement is filed and the original is archived rather than deleted, so the record of what was said and when survives. Every other field is identical either way, which is why this is one tool and not two.",
+            }),
+          ),
           template: Type.Union(
             [
               Type.Literal("day_ahead_outlook"),

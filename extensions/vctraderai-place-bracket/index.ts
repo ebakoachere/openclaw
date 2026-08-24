@@ -80,7 +80,7 @@ export default defineToolPlugin({
         symbol: Type.String({ description: "Instrument symbol.", minLength: 1 }),
         side: Type.String({ description: "BUY or SELL.", minLength: 1 }),
         qty: Type.String({
-          description: "Order quantity as a decimal STRING, in the broker own volume units.",
+          description: "Order quantity as a decimal STRING, in the BROKER'S OWN volume units: LOTS on MT5, SHARES on Alpaca. On MT5 a qty of 1 is one standard lot -- for XAUUSD that is 100 ounces.",
           minLength: 1,
         }),
         stop_loss: Type.String({

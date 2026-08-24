@@ -1,7 +1,7 @@
 {
   "id": "vctraderai-create-strategy",
-  "name": "VC Trader AI Create Strategy (Propose)",
-  "description": "Stages a new strategy proposal for human review. Calls back into propfirm_manager BFF at /api/v1/openclaw/stage with tool_name create_strategy. PROPOSE-only - it never executes/creates the strategy directly; the staged descriptor is reviewed + Applied in the chat.",
+  "name": "VC Trader AI Create Strategy",
+  "description": "Creates an owner-scoped strategy directly through the guarded propfirm_manager registry route. It authors and validates a research or Nautilus artifact but never backtests, deploys, or places an order.",
   "activation": {
     "onStartup": true
   },

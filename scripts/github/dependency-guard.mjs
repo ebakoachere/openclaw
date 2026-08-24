@@ -236,7 +236,7 @@ export function renderAuthorizedDependencyComment(override) {
     "",
     "### Dependency graph change authorized",
     "",
-    "This PR includes dependency graph changes. A member of `@openclaw/openclaw-secops` authorized this exact head SHA with `/allow-dependencies-change`.",
+    "This PR includes dependency graph changes. A designated dependency approver authorized this exact head SHA with `/allow-dependencies-change`.",
     "",
     `- Approved SHA: ${markdownCode(override.sha)}`,
     `- Approved by: @${sanitizeDisplayValue(override.login)}`,
@@ -302,7 +302,7 @@ export function renderBlockedDependencyComment({
     ...reasons,
     ...removalSteps,
     "",
-    "If this PR intentionally needs a dependency graph change, ask a member of `@openclaw/openclaw-secops` to comment:",
+    "If this PR intentionally needs a dependency graph change, ask a designated dependency approver to comment:",
     "",
     "```text",
     allowDependenciesCommand,
@@ -629,9 +629,11 @@ async function main() {
     }),
   );
   await writeSummary(
-    "## Dependency Graph Guard\n\nDependency graph changes are blocked without a current secops override.",
+    "## Dependency Graph Guard\n\nDependency graph changes are blocked without a current designated-approver override.",
   );
-  throw new Error("Dependency graph changes require removal or a current secops override.");
+  throw new Error(
+    "Dependency graph changes require removal or a current designated-approver override.",
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

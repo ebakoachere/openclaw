@@ -277,9 +277,10 @@ describe("generate-npm-shrinkwrap", () => {
     ]);
 
     expect(
-      collectCurrentShrinkwrapOverrides(lockfile, new Set(["@aws-sdk/core"]), pnpmPackages),
+      collectCurrentShrinkwrapOverrides(lockfile, new Set(["@aws-sdk/core"]), pnpmPackages, {
+        "fast-xml-parser": { ".": "5.2.5" },
+      }),
     ).toEqual({
-      "fast-xml-parser": "5.2.5",
       "react-dom": "19.2.4",
     });
   });

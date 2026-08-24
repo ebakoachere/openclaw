@@ -662,11 +662,17 @@ function generateShrinkwrap(packageDir, options = {}) {
   try {
     const packageJson = JSON.parse(readFileSync(path.join(packageDir, "package.json"), "utf8"));
     const currentShrinkwrap = readCurrentShrinkwrap(packageDir);
+    const workspaceOverrides = readShrinkwrapOverrides();
     const shrinkwrapOverrides = mergeOverrides(
       options.useCurrentShrinkwrapOverrides
-        ? readCurrentShrinkwrapOverrides(packageDir, declaredPackageDependencies(packageJson))
+        ? readCurrentShrinkwrapOverrides(
+            packageDir,
+            declaredPackageDependencies(packageJson),
+            readPnpmLockPackages(),
+            workspaceOverrides,
+          )
         : {},
-      readShrinkwrapOverrides(),
+      workspaceOverrides,
       {},
     );
     const npmInstallArgs = [
@@ -779,6 +785,7 @@ function collectCurrentShrinkwrapOverrides(
   shrinkwrap,
   declaredDependencies = new Set(),
   pnpmLockPackages = readPnpmLockPackages(),
+  workspaceOverrides = {},
 ) {
   const packages = shrinkwrap?.packages;
   if (!packages || typeof packages !== "object") {
@@ -841,6 +848,13 @@ function collectCurrentShrinkwrapOverrides(
   for (const parentSelector of conflicts) {
     delete overrides[parentSelector];
   }
+  for (const name of Object.keys(overrides)) {
+    const workspaceSpec = workspaceOverrides[name];
+    const rootSpec = isPlainObject(workspaceSpec) ? workspaceSpec["."] : workspaceSpec;
+    if (exactVersionFromOverrideSpec(rootSpec) !== null) {
+      delete overrides[name];
+    }
+  }
   return expandScopedOverrideChildren(overrides);
 }
 
@@ -848,12 +862,14 @@ function readCurrentShrinkwrapOverrides(
   packageDir,
   declaredDependencies = new Set(),
   pnpmLockPackages = readPnpmLockPackages(),
+  workspaceOverrides = {},
 ) {
   try {
     return collectCurrentShrinkwrapOverrides(
       JSON.parse(readFileSync(shrinkwrapPathForPackage(packageDir), "utf8")),
       declaredDependencies,
       pnpmLockPackages,
+      workspaceOverrides,
     );
   } catch (error) {
     if (error?.code === "ENOENT") {

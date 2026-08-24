@@ -36,6 +36,8 @@ describe("vctraderai-create-strategy", () => {
       {
         intent_brief: "trend-follow EURUSD",
         name: "Trendy",
+        runtime_tag: "vbt",
+        entry_function: "run",
         source_text: "def run(data, params=None, context=None):\n    return {}",
       },
       { fetchImpl },
@@ -59,6 +61,8 @@ describe("vctraderai-create-strategy", () => {
         intent_brief: "mean reversion",
         name: "MR",
         instruments: ["EUR_USD"],
+        runtime_tag: "vbt",
+        entry_function: "run",
         source_text: "def run(data, params=None, context=None):\n    return {}",
       },
       { fetchImpl },
@@ -87,6 +91,8 @@ describe("vctraderai-create-strategy", () => {
           // quietly modelling the very shape the BFF rejects with a 422.
           name: "X",
           intent_brief: "x",
+          runtime_tag: "vbt",
+          entry_function: "run",
           source_text: "def run(data, params=None, context=None):\n    return {}",
         },
         { fetchImpl },
@@ -134,13 +140,15 @@ describe("vctraderai-create-strategy", () => {
     // is not passing because `required` is empty or unread.
     expect(required).toContain("source_text");
     expect(required).toContain("name");
+    expect(required).toContain("runtime_tag");
+    expect(required).toContain("entry_function");
   });
 
   it("says in the description that both name and source_text are required", () => {
     const description = capturedTool().description ?? "";
     expect(description.length).toBeGreaterThan(80);
-    expect(description).toMatch(/name AND source_text are both required/);
-    expect(description).toMatch(/422/);
+    expect(description).toMatch(/runtime_tag/);
+    expect(description).toMatch(/StrategyConfig/);
   });
 
   it("names the refusal on the name parameter itself", () => {

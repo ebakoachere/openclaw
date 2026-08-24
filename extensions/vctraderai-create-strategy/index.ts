@@ -43,8 +43,13 @@ export type CreateStrategyParams = {
   intent_brief?: string;
   /** Complete agent-authored Python; the BFF assigns source provenance. */
   source_text: string;
-  entry_function?: string;
-  runtime_tag?: "vbt" | "nautilus";
+  /**
+   * REQUIRED. ``run`` for a research artifact, or the exact Strategy class
+   * name for a class-native Nautilus artifact.
+   */
+  entry_function: string;
+  /** REQUIRED. The artifact contract is never inferred from source text. */
+  runtime_tag: "vbt" | "nautilus";
   default_params?: Record<string, unknown>;
   timeframes?: string[];
   instruments?: string[];
@@ -78,7 +83,7 @@ export default defineToolPlugin({
       name: CREATE_STRATEGY_TOOL_NAME,
       label: "Create Strategy",
       description:
-        "Create a NEW trading strategy directly. name AND source_text are both required - omitting either is refused with HTTP 422 before anything runs; source_text must be complete native Python. runtime_tag=vbt with entry_function='run' is a research signal artifact - lint_strategy checks that shape. runtime_tag=nautilus needs a named nautilus_trader Strategy class in entry_function and is validated here against the Nautilus class contract (lint_strategy falsely rejects that shape). Only a runtime_tag=nautilus strategy with a pinned Nautilus class can deploy, and the runtime is fixed at creation - update_strategy cannot change it. This does not backtest, deploy, or touch live money.",
+        "Create a NEW trading strategy directly. name, source_text, runtime_tag, and entry_function are all required. Choose the artifact contract BEFORE writing source: runtime_tag=vbt requires entry_function='run' and the six-key research return contract; lint_strategy validates that shape. runtime_tag=nautilus requires entry_function to name the native Strategy subclass and a canonical StrategyConfig class; this tool validates that class-native contract directly, because lint_strategy rejects it. Only a runtime_tag=nautilus strategy with a pinned Nautilus class can deploy, and the runtime is fixed at creation - update_strategy cannot change it. This does not backtest, deploy, or touch live money.",
       parameters: Type.Object(
         {
           name: Type.String({
@@ -103,18 +108,16 @@ export default defineToolPlugin({
               "Required complete native-Python source. Use run(...) for vbt research, or a named nautilus_trader Strategy class for runtime_tag=nautilus.",
             minLength: 1,
           }),
-          entry_function: Type.Optional(
-            Type.String({
-              description:
-                "run for vbt research; the exact Strategy class name for a native Nautilus artifact.",
-            }),
-          ),
-          runtime_tag: Type.Optional(
-            Type.String({
-              enum: ["vbt", "nautilus"],
-              description: "vbt is research; nautilus selects the class-native, deployable lane.",
-            }),
-          ),
+          entry_function: Type.String({
+            minLength: 1,
+            description:
+              "Required. Use exactly run for vbt research; otherwise use the exact native Nautilus Strategy class name.",
+          }),
+          runtime_tag: Type.String({
+            enum: ["vbt", "nautilus"],
+            description:
+              "Required. vbt requires entry_function=run; nautilus requires the named Strategy class and StrategyConfig contract.",
+          }),
           default_params: Type.Optional(
             Type.Record(Type.String(), Type.Unknown(), {
               description: "Default strategy parameters keyed by name.",

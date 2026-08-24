@@ -25,6 +25,8 @@ describe("vctraderai-create-strategy egress allowlist", () => {
         // fixture used to omit it.
         name: "X",
         intent_brief: "x",
+        runtime_tag: "vbt",
+        entry_function: "run",
         source_text: "def run(data, params=None, context=None):\n    return {}",
       },
       { fetchImpl },
@@ -95,6 +97,8 @@ describe("vctraderai-create-strategy egress allowlist", () => {
           // egress fixtures used to omit it.
           name: "X",
           intent_brief: "x",
+          runtime_tag: "vbt",
+          entry_function: "run",
           source_text: "def run(data, params=None, context=None):\n    return {}",
         },
         { fetchImpl },

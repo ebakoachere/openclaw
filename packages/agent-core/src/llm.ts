@@ -94,6 +94,14 @@ export interface Usage {
     cacheWrite: number;
     total: number;
   };
+  /**
+   * Provider-native token fields retained until terminal metering has mapped
+   * them.  The generic Usage fields remain the runtime's display projection;
+   * this optional snapshot prevents cache tiers from being collapsed before a
+   * provider-neutral ledger can record them.
+   */
+  providerRaw?: Record<string, unknown>;
+  providerRequestId?: string;
 }
 
 export type StopReason = "stop" | "length" | "toolUse" | "aborted" | "error";

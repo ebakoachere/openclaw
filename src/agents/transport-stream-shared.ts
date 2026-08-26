@@ -9,6 +9,8 @@ type TransportUsage = {
   cacheWrite: number;
   totalTokens: number;
   cost: { input: number; output: number; cacheRead: number; cacheWrite: number; total: number };
+  providerRaw?: Record<string, unknown>;
+  providerRequestId?: string;
 };
 
 export type WritableTransportStream = {

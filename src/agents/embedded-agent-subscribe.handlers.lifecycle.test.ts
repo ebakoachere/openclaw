@@ -53,6 +53,10 @@ function createContext(
     emitBlockReply,
     resolveCompactionRetry: vi.fn(),
     maybeResolveCompactionWait: vi.fn(),
+    getProviderUsageSnapshots: () =>
+      lastAssistant && typeof lastAssistant === "object" && "usage" in lastAssistant
+        ? [lastAssistant]
+        : [],
   } as unknown as EmbeddedAgentSubscribeContext;
 }
 
@@ -140,6 +144,105 @@ describe("handleAgentEnd", () => {
         phase: "end",
         stopReason: "aborted",
       },
+    });
+  });
+
+  it("surfaces the effective serving model and provider on a successful terminal", async () => {
+    emitAgentEventMock.mockClear();
+    const onAgentEvent = vi.fn();
+    const ctx = createContext(
+      {
+        role: "assistant",
+        stopReason: "stop",
+        provider: "deepinfra",
+        model: "moonshotai/Kimi-K2.5",
+        content: [{ type: "text", text: "done" }],
+      },
+      { onAgentEvent },
+    );
+
+    await handleAgentEnd(ctx);
+
+    expect(emitAgentEventMock).toHaveBeenCalledWith({
+      runId: "run-1",
+      stream: "lifecycle",
+      data: expect.objectContaining({
+        phase: "end",
+        model: "moonshotai/Kimi-K2.5",
+        provider: "deepinfra",
+      }),
+    });
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      stream: "lifecycle",
+      data: expect.objectContaining({
+        phase: "end",
+        model: "moonshotai/Kimi-K2.5",
+        provider: "deepinfra",
+      }),
+    });
+  });
+
+  it("attaches the versioned provider usage envelope to a successful terminal", async () => {
+    const onAgentEvent = vi.fn();
+    const ctx = createContext(
+      {
+        role: "assistant",
+        stopReason: "stop",
+        provider: "deepseek",
+        model: "deepseek-v4-flash",
+        usage: {
+          prompt_cache_miss_tokens: 120,
+          prompt_cache_hit_tokens: 80,
+          output_tokens: 16,
+          reasoning_tokens: 4,
+        },
+        content: [{ type: "text", text: "done" }],
+      },
+      { onAgentEvent },
+    );
+
+    await handleAgentEnd(ctx);
+
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      stream: "lifecycle",
+      data: expect.objectContaining({
+        phase: "end",
+        providerUsage: expect.objectContaining({
+          version: 2,
+          provider: "deepseek",
+          model: "deepseek-v4-flash",
+          uncachedInputTokens: 120,
+          cacheReadTokens: 80,
+          outputTokens: 16,
+          reasoningTokens: 4,
+        }),
+      }),
+    });
+  });
+
+  it("surfaces the fallback serving model and provider on an error terminal", async () => {
+    const onAgentEvent = vi.fn();
+    const ctx = createContext(
+      {
+        role: "assistant",
+        stopReason: "error",
+        provider: "fireworks",
+        model: "fireworks/kimi-fallback",
+        errorMessage: "Google Generative AI API error (429): You exceeded your current quota.",
+        content: [{ type: "text", text: "" }],
+      },
+      { onAgentEvent },
+    );
+
+    await handleAgentEnd(ctx);
+
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      stream: "lifecycle",
+      data: expect.objectContaining({
+        phase: "error",
+        model: "fireworks/kimi-fallback",
+        provider: "fireworks",
+      }),
     });
   });
 

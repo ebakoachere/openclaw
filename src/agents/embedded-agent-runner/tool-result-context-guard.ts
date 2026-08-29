@@ -12,7 +12,6 @@ import {
   TOOL_RESULT_CHARS_PER_TOKEN_ESTIMATE,
   type MessageCharEstimateCache,
   createMessageCharEstimateCache,
-  estimateContextChars,
   estimateMessageCharsCached,
   getToolResultText,
   invalidateMessageCharsCacheEntry,
@@ -243,9 +242,35 @@ function toolResultsNeedTruncation(params: {
   return false;
 }
 
-function estimatePreemptiveOverflowContextChars(messages: AgentMessage[]): number {
+function estimatePreemptiveOverflowContextChars(messages: AgentMessage[]): {
+  totalChars: number;
+  toolResultChars: number;
+  nonToolResultChars: number;
+  toolResultMessages: number;
+  nonToolResultMessages: number;
+} {
   const estimateCache = createMessageCharEstimateCache();
-  return estimateContextChars(messages, estimateCache);
+  let toolResultChars = 0;
+  let nonToolResultChars = 0;
+  let toolResultMessages = 0;
+  let nonToolResultMessages = 0;
+  for (const message of messages) {
+    const estimatedChars = estimateMessageCharsCached(message, estimateCache);
+    if (isToolResultMessage(message)) {
+      toolResultChars += estimatedChars;
+      toolResultMessages++;
+    } else {
+      nonToolResultChars += estimatedChars;
+      nonToolResultMessages++;
+    }
+  }
+  return {
+    totalChars: toolResultChars + nonToolResultChars,
+    toolResultChars,
+    nonToolResultChars,
+    toolResultMessages,
+    nonToolResultMessages,
+  };
 }
 
 function applyMessageMutationInPlace(
@@ -548,8 +573,8 @@ export function installToolResultContextGuard(params: {
       }
       lastSeenLength = contextMessages.length;
     }
-    const estimatedContextChars = estimatePreemptiveOverflowContextChars(contextMessages);
-    if (estimatedContextChars > maxContextChars) {
+    const contextEstimate = estimatePreemptiveOverflowContextChars(contextMessages);
+    if (contextEstimate.totalChars > maxContextChars) {
       // This guard compares weighted character estimates, not provider tokens.
       // Emit both forms at the throw site so a live failure can prove whether
       // this guard received the same resolved budget as the transport.
@@ -558,8 +583,14 @@ export function installToolResultContextGuard(params: {
           `contextTokenBudget=${contextWindowTokens} ` +
           `safeThresholdTokens=${Math.floor(contextWindowTokens * PREEMPTIVE_OVERFLOW_RATIO)} ` +
           `safeThresholdChars=${maxContextChars} ` +
-          `estimatedContextChars=${estimatedContextChars} ` +
-          `estimatedContextTokensAt4Chars=${Math.ceil(estimatedContextChars / CHARS_PER_TOKEN_ESTIMATE)} ` +
+          `estimatedContextChars=${contextEstimate.totalChars} ` +
+          `estimatedContextTokensAt4Chars=${Math.ceil(contextEstimate.totalChars / CHARS_PER_TOKEN_ESTIMATE)} ` +
+          `toolResultWeightedChars=${contextEstimate.toolResultChars} ` +
+          `toolResultEstimatedTokensAt2Chars=${Math.ceil(contextEstimate.toolResultChars / CHARS_PER_TOKEN_ESTIMATE)} ` +
+          `toolResultMessages=${contextEstimate.toolResultMessages} ` +
+          `nonToolResultChars=${contextEstimate.nonToolResultChars} ` +
+          `nonToolResultEstimatedTokensAt4Chars=${Math.ceil(contextEstimate.nonToolResultChars / CHARS_PER_TOKEN_ESTIMATE)} ` +
+          `nonToolResultMessages=${contextEstimate.nonToolResultMessages} ` +
           `charsPerToken=${CHARS_PER_TOKEN_ESTIMATE} ` +
           `toolResultCharsPerToken=${TOOL_RESULT_CHARS_PER_TOKEN_ESTIMATE} ` +
           `messages=${contextMessages.length}`,

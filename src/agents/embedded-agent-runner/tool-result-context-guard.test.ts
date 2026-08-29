@@ -116,6 +116,8 @@ async function applyMidTurnPrecheckGuardToContext(
     toolResultMaxChars?: number;
     prePromptMessageCount?: number;
     systemPrompt?: string;
+    enabled?: boolean;
+    observeOnly?: boolean;
   } = {},
 ) {
   const contextWindowTokens = options.contextWindowTokens ?? options.contextTokenBudget ?? 20_000;
@@ -123,7 +125,8 @@ async function applyMidTurnPrecheckGuardToContext(
     agent,
     contextWindowTokens,
     midTurnPrecheck: {
-      enabled: true,
+      enabled: options.enabled ?? true,
+      observeOnly: options.observeOnly,
       contextTokenBudget: options.contextTokenBudget ?? contextWindowTokens,
       reserveTokens: () => options.reserveTokens ?? 10_000,
       toolResultMaxChars: options.toolResultMaxChars,
@@ -340,6 +343,26 @@ describe("installToolResultContextGuard", () => {
       expect(typeof signal.request.overflowTokens).toBe("number");
       expect(typeof signal.request.toolResultReducibleChars).toBe("number");
     }
+  });
+
+  it("observes a mid-turn overflow without signalling compaction", async () => {
+    const agent = makeGuardableAgent();
+    const contextForNextCall = [
+      makeUser("prompt already in history"),
+      makeToolResult("call_big", "x".repeat(80_000)),
+    ];
+
+    await expect(
+      applyMidTurnPrecheckGuardToContext(agent, contextForNextCall, {
+        contextWindowTokens: 200_000,
+        contextTokenBudget: 20_000,
+        reserveTokens: 12_000,
+        toolResultMaxChars: 16_000,
+        prePromptMessageCount: 1,
+        enabled: false,
+        observeOnly: true,
+      }),
+    ).resolves.toBe(contextForNextCall);
   });
 
   it("does not run mid-turn precheck when no new tool result was appended", async () => {

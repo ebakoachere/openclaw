@@ -40,6 +40,12 @@ type GuardableAgentRecord = {
 
 type MidTurnPrecheckOptions = {
   enabled?: boolean;
+  /**
+   * Evaluates and logs the mid-turn precheck, but never signals compaction.
+   * This is deliberately separate from `enabled`: it is safe to use while
+   * measuring a live session because it cannot alter the tool-loop control flow.
+   */
+  observeOnly?: boolean;
   contextTokenBudget: number;
   reserveTokens: () => number;
   toolResultMaxChars?: number;
@@ -237,12 +243,9 @@ function toolResultsNeedTruncation(params: {
   return false;
 }
 
-function exceedsPreemptiveOverflowThreshold(params: {
-  messages: AgentMessage[];
-  maxContextChars: number;
-}): boolean {
+function estimatePreemptiveOverflowContextChars(messages: AgentMessage[]): number {
   const estimateCache = createMessageCharEstimateCache();
-  return estimateContextChars(params.messages, estimateCache) > params.maxContextChars;
+  return estimateContextChars(messages, estimateCache);
 }
 
 function applyMessageMutationInPlace(
@@ -491,7 +494,7 @@ export function installToolResultContextGuard(params: {
         maxSingleToolResultChars,
       });
     }
-    if (params.midTurnPrecheck?.enabled) {
+    if (params.midTurnPrecheck?.enabled || params.midTurnPrecheck?.observeOnly) {
       const prePromptMessageCount = Math.max(
         0,
         Math.min(
@@ -521,26 +524,46 @@ export function installToolResultContextGuard(params: {
           toolResultMaxChars: params.midTurnPrecheck.toolResultMaxChars,
         });
         const request = toMidTurnPrecheckRequest(precheck);
-        log.debug(
-          `[context-overflow-midturn-precheck] tool-result-guard check route=${precheck.route} ` +
-            `messages=${contextMessages.length} prePromptMessageCount=${prePromptMessageCount} ` +
-            `estimatedPromptTokens=${precheck.estimatedPromptTokens} ` +
-            `promptBudgetBeforeReserve=${precheck.promptBudgetBeforeReserve} ` +
-            `overflowTokens=${precheck.overflowTokens}`,
-        );
-        if (request) {
+        const precheckLog =
+          `[context-overflow-midturn-precheck] tool-result-guard check ` +
+          `mode=${params.midTurnPrecheck.observeOnly ? "observe-only" : "enforce"} ` +
+          `route=${precheck.route} shouldCompact=${precheck.shouldCompact} ` +
+          `messages=${contextMessages.length} prePromptMessageCount=${prePromptMessageCount} ` +
+          `contextTokenBudget=${params.midTurnPrecheck.contextTokenBudget} ` +
+          `estimatedPromptTokens=${precheck.estimatedPromptTokens} ` +
+          `pressureSource=${precheck.pressureSource ?? "unknown"} ` +
+          `promptBudgetBeforeReserve=${precheck.promptBudgetBeforeReserve} ` +
+          `overflowTokens=${precheck.overflowTokens} ` +
+          `toolResultReducibleChars=${precheck.toolResultReducibleChars} ` +
+          `effectiveReserveTokens=${precheck.effectiveReserveTokens}`;
+        if (params.midTurnPrecheck.observeOnly) {
+          log.info(precheckLog);
+        } else {
+          log.debug(precheckLog);
+        }
+        if (params.midTurnPrecheck.enabled && request) {
           params.midTurnPrecheck.onMidTurnPrecheck?.(request);
           throw new MidTurnPrecheckSignal(request);
         }
       }
       lastSeenLength = contextMessages.length;
     }
-    if (
-      exceedsPreemptiveOverflowThreshold({
-        messages: contextMessages,
-        maxContextChars,
-      })
-    ) {
+    const estimatedContextChars = estimatePreemptiveOverflowContextChars(contextMessages);
+    if (estimatedContextChars > maxContextChars) {
+      // This guard compares weighted character estimates, not provider tokens.
+      // Emit both forms at the throw site so a live failure can prove whether
+      // this guard received the same resolved budget as the transport.
+      log.warn(
+        `[context-overflow-guard] preemptive threshold exceeded ` +
+          `contextTokenBudget=${contextWindowTokens} ` +
+          `safeThresholdTokens=${Math.floor(contextWindowTokens * PREEMPTIVE_OVERFLOW_RATIO)} ` +
+          `safeThresholdChars=${maxContextChars} ` +
+          `estimatedContextChars=${estimatedContextChars} ` +
+          `estimatedContextTokensAt4Chars=${Math.ceil(estimatedContextChars / CHARS_PER_TOKEN_ESTIMATE)} ` +
+          `charsPerToken=${CHARS_PER_TOKEN_ESTIMATE} ` +
+          `toolResultCharsPerToken=${TOOL_RESULT_CHARS_PER_TOKEN_ESTIMATE} ` +
+          `messages=${contextMessages.length}`,
+      );
       throw new Error(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
     }
 

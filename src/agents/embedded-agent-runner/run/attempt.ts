@@ -2190,23 +2190,30 @@ export async function runEmbeddedAttempt(
       });
       const midTurnPrecheckEnabled =
         params.config?.agents?.defaults?.compaction?.midTurnPrecheck?.enabled === true;
+      // Observation is intentionally process-scoped rather than a config-schema
+      // switch: this lets an operator measure the existing disabled precheck in
+      // one deployment without permitting it to alter any session's control flow.
+      const midTurnPrecheckObserveOnly =
+        !midTurnPrecheckEnabled && process.env.OPENCLAW_CONTEXT_GUARD_OBSERVE_ONLY === "1";
       let pendingMidTurnPrecheckRequest: MidTurnPrecheckRequest | null = null;
       const onMidTurnPrecheck = (request: MidTurnPrecheckRequest) => {
         pendingMidTurnPrecheckRequest = request;
       };
-      const midTurnPrecheckOptions = midTurnPrecheckEnabled
-        ? {
-            midTurnPrecheck: {
-              enabled: true,
-              contextTokenBudget: contextTokenBudgetForGuard,
-              reserveTokens: () => settingsManager.getCompactionReserveTokens(),
-              toolResultMaxChars: toolResultMaxCharsForGuard,
-              getSystemPrompt: () => systemPromptText,
-              getPrePromptMessageCount: () => prePromptMessageCount,
-              onMidTurnPrecheck,
-            },
-          }
-        : {};
+      const midTurnPrecheckOptions =
+        midTurnPrecheckEnabled || midTurnPrecheckObserveOnly
+          ? {
+              midTurnPrecheck: {
+                enabled: midTurnPrecheckEnabled,
+                observeOnly: midTurnPrecheckObserveOnly,
+                contextTokenBudget: contextTokenBudgetForGuard,
+                reserveTokens: () => settingsManager.getCompactionReserveTokens(),
+                toolResultMaxChars: toolResultMaxCharsForGuard,
+                getSystemPrompt: () => systemPromptText,
+                getPrePromptMessageCount: () => prePromptMessageCount,
+                onMidTurnPrecheck,
+              },
+            }
+          : {};
       if (activeContextEngine?.info.ownsCompaction === true) {
         const removeContextEngineLoopHook = installContextEngineLoopHook({
           agent: activeSession.agent,

@@ -1,7 +1,12 @@
 import type { AgentMessage } from "openclaw/plugin-sdk/agent-core";
 import { describe, expect, it } from "vitest";
 import { castAgentMessage } from "../test-helpers/agent-message-fixtures.js";
-import { MidTurnPrecheckSignal } from "./run/midturn-precheck.js";
+import {
+  isMidTurnPrecheckSignal,
+  MID_TURN_PRECHECK_ERROR_MESSAGE,
+  MidTurnPrecheckSignal,
+  type MidTurnPrecheckRequest,
+} from "./run/midturn-precheck.js";
 import {
   createMessageCharEstimateCache,
   estimateContextChars,
@@ -31,6 +36,7 @@ import {
  */
 
 const LIVE_CONTEXT_TOKEN_BUDGET = 600_000;
+const LIVE_RESERVE_TOKENS = 20_000; // compaction.reserveTokensFloor, live config
 const LIVE_TOOL_RESULT_MESSAGES = 121;
 const LIVE_NON_TOOL_RESULT_MESSAGES = 27;
 const LIVE_TOOL_RESULT_TEXT_CHARS = 1_258_919; // toolResultWeightedChars 2,517,838 / 2
@@ -98,13 +104,27 @@ function estimateContextCharsAsShipped(messages: AgentMessage[]): number {
   return total;
 }
 
+type GuardRun = {
+  outcome: "passed" | "preemptive_overflow" | "midturn_precheck";
+  error?: unknown;
+  /**
+   * Everything handed to `onMidTurnPrecheck`. This is the exact wire
+   * `run/attempt.ts` uses to reach `handleMidTurnPrecheckRequest`, so an empty
+   * array means the runtime would have been told nothing.
+   */
+  precheckRequests: MidTurnPrecheckRequest[];
+};
+
 async function runGuard(
   messages: AgentMessage[],
   midTurnPrecheck?: {
-    reserveTokens: number;
-    systemPrompt?: string;
+    enabled?: boolean;
+    reserveTokens?: number;
+    contextTokenBudget?: number;
+    prePromptMessageCount?: number;
   },
-): Promise<{ outcome: "passed" | "preemptive_overflow" | "midturn_precheck"; error?: unknown }> {
+): Promise<GuardRun> {
+  const precheckRequests: MidTurnPrecheckRequest[] = [];
   const agent: { transformContext?: (m: AgentMessage[], s: AbortSignal) => unknown } = {};
   installToolResultContextGuard({
     agent,
@@ -112,23 +132,26 @@ async function runGuard(
     ...(midTurnPrecheck
       ? {
           midTurnPrecheck: {
-            enabled: true,
-            contextTokenBudget: LIVE_CONTEXT_TOKEN_BUDGET,
-            reserveTokens: () => midTurnPrecheck.reserveTokens,
-            getSystemPrompt: () => midTurnPrecheck.systemPrompt,
-            getPrePromptMessageCount: () => 0,
+            enabled: midTurnPrecheck.enabled ?? true,
+            contextTokenBudget: midTurnPrecheck.contextTokenBudget ?? LIVE_CONTEXT_TOKEN_BUDGET,
+            reserveTokens: () => midTurnPrecheck.reserveTokens ?? LIVE_RESERVE_TOKENS,
+            getPrePromptMessageCount: () => midTurnPrecheck.prePromptMessageCount ?? 0,
+            onMidTurnPrecheck: (request) => {
+              precheckRequests.push(request);
+            },
           },
         }
       : {}),
   });
   try {
     await agent.transformContext?.(messages, new AbortController().signal);
-    return { outcome: "passed" };
+    return { outcome: "passed", precheckRequests };
   } catch (err) {
-    if (err instanceof MidTurnPrecheckSignal) {
-      return { outcome: "midturn_precheck", error: err };
-    }
-    return { outcome: "preemptive_overflow", error: err };
+    return {
+      outcome: isMidTurnPrecheckSignal(err) ? "midturn_precheck" : "preemptive_overflow",
+      error: err,
+      precheckRequests,
+    };
   }
 }
 
@@ -154,15 +177,73 @@ describe("live overflow replay 2026-08-30", () => {
     // that actually served this turn) and ~515,900 on claude-sonnet-4-6.
     expect(measuredTokens).toBe(571_319);
   });
+});
 
-  it("still refuses the turn on the preemptive char threshold alone", async () => {
-    const result = await runGuard(buildFailingTurnMessages());
-    expect(result.outcome).toBe("preemptive_overflow");
-    expect((result.error as Error).message).toBe(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
+/**
+ * Whether the precheck FIRES on this turn is a separate question from whether
+ * the suite is green, and three independent gates stand between the two
+ * (`tool-result-context-guard.ts`): `midTurnPrecheck.enabled` (:499), a tool
+ * result after the prompt fence (:511), and a route other than "fits" (:538).
+ * Any one of them falling through lands on the overflow throw at :549 instead.
+ * The precheck does NOT convert that error -- it pre-empts it.
+ *
+ * So each gate gets its own negative control. A test that only asserted "no
+ * overflow error" would pass on a guard that raised nothing at all.
+ */
+describe("mid-turn precheck fires on the replayed turn, and only when all three gates hold", () => {
+  it("POSITIVE: raises MidTurnPrecheckSignal, and hands the request to the runtime", async () => {
+    const result = await runGuard(buildFailingTurnMessages(), {});
+
+    // The exact predicate run/attempt.ts routes on before calling
+    // handleMidTurnPrecheckRequest.
+    expect(isMidTurnPrecheckSignal(result.error)).toBe(true);
+    expect(result.error).toBeInstanceOf(MidTurnPrecheckSignal);
+    const signal = result.error as MidTurnPrecheckSignal;
+    expect(signal.name).toBe("MidTurnPrecheckSignal");
+    expect(signal.message).toBe(MID_TURN_PRECHECK_ERROR_MESSAGE);
+    // It is NOT the overflow error wearing a different hat.
+    expect(signal.message).not.toBe(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
+
+    // A request that routes "fits" is never signalled, so a signal carrying one
+    // would mean the guard threw for a turn it had judged to fit.
+    expect(signal.request.route).not.toBe("fits");
+    expect(signal.request.overflowTokens).toBeGreaterThan(0);
+
+    // handleMidTurnPrecheckRequest is reached through this callback. Without
+    // it the signal would unwind with the runtime never told to compact.
+    expect(result.precheckRequests).toHaveLength(1);
+    expect(result.precheckRequests[0]).toBe(signal.request);
   });
 
-  it("compacts instead of dying once the mid-turn precheck is armed", async () => {
-    const result = await runGuard(buildFailingTurnMessages(), { reserveTokens: 20_000 });
-    expect(result.outcome).toBe("midturn_precheck");
+  it("NEGATIVE (gate 1, enabled): the same replay still dies on the overflow throw", async () => {
+    const result = await runGuard(buildFailingTurnMessages());
+
+    expect(result.outcome).toBe("preemptive_overflow");
+    expect(isMidTurnPrecheckSignal(result.error)).toBe(false);
+    expect((result.error as Error).message).toBe(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
+    expect(result.precheckRequests).toHaveLength(0);
+  });
+
+  it("NEGATIVE (gate 2, fence): no tool result after the fence means no precheck", async () => {
+    const messages = buildFailingTurnMessages();
+    const result = await runGuard(messages, { prePromptMessageCount: messages.length });
+
+    expect(result.outcome).toBe("preemptive_overflow");
+    expect((result.error as Error).message).toBe(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
+    expect(result.precheckRequests).toHaveLength(0);
+  });
+
+  it("NEGATIVE (gate 3, route): a prompt the precheck judges to fit raises nothing", async () => {
+    // Same messages, same char guard, but a budget large enough that the
+    // precheck routes "fits" -- exactly the divergence between the two
+    // mechanisms, and the reason the overflow throw is still reachable.
+    const result = await runGuard(buildFailingTurnMessages(), {
+      contextTokenBudget: 2_000_000,
+    });
+
+    expect(result.outcome).toBe("preemptive_overflow");
+    expect(isMidTurnPrecheckSignal(result.error)).toBe(false);
+    expect((result.error as Error).message).toBe(PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE);
+    expect(result.precheckRequests).toHaveLength(0);
   });
 });

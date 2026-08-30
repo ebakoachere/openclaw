@@ -58,7 +58,7 @@ function buildFailingTurnMessages(): AgentMessage[] {
         role: "toolResult",
         toolCallId: `call-${i}`,
         toolName: "ohlcv_tail",
-        content: [{ type: "text", text: "x".repeat(toolResultSizes[i] as number) }],
+        content: [{ type: "text", text: "x".repeat(toolResultSizes[i]) }],
         isError: false,
         timestamp: 1_788_089_770_000 + i,
       }),
@@ -68,7 +68,7 @@ function buildFailingTurnMessages(): AgentMessage[] {
       messages.push(
         castAgentMessage({
           role: "user",
-          content: "u".repeat(userSizes[userIndex] as number),
+          content: "u".repeat(userSizes[userIndex]),
           timestamp: 1_788_089_770_000 + i,
         }),
       );

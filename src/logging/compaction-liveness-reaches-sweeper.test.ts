@@ -170,7 +170,12 @@ describe("compaction liveness reaches the stuck-session sweeper", () => {
     );
 
     expect(sweptOutcome?.status).toBe("skipped");
-    expect(sweptOutcome?.reason).toBe("active_embedded_run");
+    // `reason` only exists on the skipped/noop/failed arms of the outcome union,
+    // so narrow rather than assert past it. An outcome without a `reason` makes
+    // this `false` and fails, which is the point.
+    expect(sweptOutcome && "reason" in sweptOutcome && sweptOutcome.reason).toBe(
+      "active_embedded_run",
+    );
     expect(mocks.abortEmbeddedAgentRun).not.toHaveBeenCalled();
     markDiagnosticEmbeddedRunEnded({ sessionId: SESSION_ID, sessionKey: SESSION_KEY });
   });

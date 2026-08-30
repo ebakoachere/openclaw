@@ -126,6 +126,7 @@ import {
   runBeforeCompactionHooks,
   runPostCompactionSideEffects,
 } from "./compaction-hooks.js";
+import { withCompactionRunProgress } from "./compaction-liveness.js";
 import { resolveEmbeddedCompactionTarget } from "./compaction-runtime-context.js";
 import {
   compactWithSafetyTimeout,
@@ -410,6 +411,22 @@ function fallbackFailureToCompactionResult(err: unknown): EmbeddedAgentCompactRe
  * Use this when already inside a session/global lane to avoid deadlocks.
  */
 export async function compactEmbeddedAgentSessionDirect(
+  params: CompactEmbeddedAgentSessionParams,
+): Promise<EmbeddedAgentCompactResult> {
+  // Compaction is the one long-running phase of a turn that reported no
+  // liveness at all, so the stuck-session sweeper could not tell a healthy
+  // compaction from a hung one. See `compaction-liveness.ts`.
+  return await withCompactionRunProgress(
+    {
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+      runId: params.runId,
+    },
+    () => compactEmbeddedAgentSessionWithModelFallback(params),
+  );
+}
+
+async function compactEmbeddedAgentSessionWithModelFallback(
   params: CompactEmbeddedAgentSessionParams,
 ): Promise<EmbeddedAgentCompactResult> {
   if (hasExplicitCompactionModel(params) || !hasCompactionModelFallbackCandidates(params)) {

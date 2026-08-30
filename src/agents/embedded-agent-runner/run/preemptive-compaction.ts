@@ -7,6 +7,7 @@ import {
 } from "../../agent-compaction-constants.js";
 import { SAFETY_MARGIN } from "../../compaction.js";
 import type { AgentMessage } from "../../runtime/index.js";
+import { TOOL_RESULT_AGGREGATE_CHARS_PER_TOKEN_ESTIMATE } from "../tool-result-char-estimator.js";
 import { estimateToolResultReductionPotential } from "../tool-result-truncation.js";
 import type { PreemptiveCompactionRoute } from "./preemptive-compaction.types.js";
 
@@ -14,7 +15,11 @@ export const PREEMPTIVE_OVERFLOW_ERROR_TEXT =
   "Context overflow: prompt too large for the model (precheck).";
 
 const ESTIMATED_CHARS_PER_TOKEN = 4;
-const TOOL_RESULT_CHARS_PER_TOKEN = 2;
+// This precheck sums the WHOLE prompt, so it takes the measured aggregate
+// ratio, not the per-result 5th percentile. It used to carry its own `2`
+// literal: a second copy of the same guess, which meant the guard and the
+// precheck could be corrected independently and silently disagree.
+const TOOL_RESULT_CHARS_PER_TOKEN = TOOL_RESULT_AGGREGATE_CHARS_PER_TOKEN_ESTIMATE;
 const JSON_PAYLOAD_CHARS_PER_TOKEN = 3;
 const MESSAGE_BOUNDARY_OVERHEAD_TOKENS = 12;
 const CONTENT_BLOCK_OVERHEAD_TOKENS = 6;

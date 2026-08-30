@@ -10,6 +10,7 @@ import { shouldPreemptivelyCompactBeforePrompt } from "./run/preemptive-compacti
 import {
   CHARS_PER_TOKEN_ESTIMATE,
   TOOL_RESULT_CHARS_PER_TOKEN_ESTIMATE,
+  TOOL_RESULT_CONTEXT_CHAR_WEIGHT,
   type MessageCharEstimateCache,
   createMessageCharEstimateCache,
   estimateContextChars,
@@ -24,7 +25,11 @@ const PREEMPTIVE_OVERFLOW_RATIO = 0.9;
 
 export const PREEMPTIVE_CONTEXT_OVERFLOW_MESSAGE =
   "Context overflow: estimated context size exceeds safe threshold during tool loop.";
-const TOOL_RESULT_ESTIMATE_TO_TEXT_RATIO = 4 / TOOL_RESULT_CHARS_PER_TOKEN_ESTIMATE;
+// Inverts the weighting `estimateMessageChars` applies to tool results so a
+// weighted-char budget can be turned back into a text-char budget. It must
+// track that weighting exactly, so it is the shared constant, never a second
+// literal that can drift away from it.
+const TOOL_RESULT_ESTIMATE_TO_TEXT_RATIO = TOOL_RESULT_CONTEXT_CHAR_WEIGHT;
 const TRANSCRIPT_PROMPT_TEXT_KEY = "__openclawTranscriptPromptText";
 
 type GuardableTransformContext = (

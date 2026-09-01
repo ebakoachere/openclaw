@@ -53,18 +53,36 @@ describe("vctraderai-get-heartbeat-status", () => {
   // Found by diffing what the fix wave REMOVED from one plugin against what
   // still exists in the others: a fact that belongs to a FAMILY does not get
   // fixed by repairing the tool a finding happened to name.
-  it("names where the policy id comes from, not just what it is called", () => {
+  it("names where the policy id comes from, and that omitting it is allowed", () => {
     const registration = createCapturedPluginRegistration({
       id: "vctraderai-get-heartbeat-status",
     });
     plugin.register(registration.api);
     const tool = registration.tools[0] as {
-      parameters?: { properties?: Record<string, { description?: string }> };
+      parameters?: {
+        properties?: Record<string, { description?: string }>;
+        required?: string[];
+      };
     };
     const policyId = tool.parameters?.properties?.policy_id?.description ?? "";
     // Non-vacuity: a missing param would satisfy every assertion below on "".
     expect(policyId.length).toBeGreaterThan(40);
     expect(policyId).toMatch(/enable_heartbeat/);
-    expect(policyId).toMatch(/no lookup by name/i);
+
+    // This assertion USED to require the text "no lookup by name or by
+    // workspace". That claim became FALSE on 2026-08-25, when the BFF route
+    // made `policy_id` optional and added the workspace-wide branch --
+    // web_api/openclaw_internal/router.py, `policy_id: UUID | None`. The
+    // schema kept demanding the id anyway, so an agent that had not created
+    // the policy could not answer "is my heartbeat running?" at all. Asked
+    // exactly that, Agent Alpha answered from its own transcript and reported
+    // monitoring had run "through the night" while every policy sat stopped.
+    // The old assertion was pinning the lie in place, so it is inverted here
+    // rather than deleted: the description must now TELL the model it may omit
+    // the id, because that is the call the server has accepted all along.
+    expect(policyId).toMatch(/optional/i);
+    expect(policyId).toMatch(/omit/i);
+    expect(policyId).not.toMatch(/no lookup by name/i);
+    expect(tool.parameters?.required ?? []).not.toContain("policy_id");
   });
 });

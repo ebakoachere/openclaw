@@ -72,14 +72,16 @@ export default defineToolPlugin({
       name: GET_HEARTBEAT_STATUS_TOOL_NAME,
       label: "Get Heartbeat Status",
       description:
-        "Read heartbeat status, cadence, timeout, route, failure streak, last failure, and next due time.",
+        "Answer \"is my heartbeat running?\" for this workspace. Call it with NO arguments to get the whole workspace: `armed` says outright whether any policy is live, `policy_count` how many exist, and `policies` lists each one's status, cadence, next due and last run. Pass `policy_id` only to narrow to a single policy. NEVER answer this question from your own transcript or memory -- a heartbeat you enabled earlier may have stopped since, and reporting that monitoring is running when every policy is stopped is the exact failure this tool exists to prevent.",
       parameters: Type.Object(
         {
-          policy_id: Type.String({
-            description:
-              "Heartbeat policy id -- the `policy_id` field of enable_heartbeat's response. There is no lookup by name or by workspace: without that id this tool has nothing to act on.",
-            minLength: 1,
-          }),
+          policy_id: Type.Optional(
+            Type.String({
+              description:
+                "OPTIONAL. Narrow to one heartbeat policy -- the `policy_id` field of enable_heartbeat's response. OMIT IT to answer for the whole workspace, which is what you want when you did not create the policy yourself and therefore do not hold its id.",
+              minLength: 1,
+            }),
+          ),
         },
         { additionalProperties: true },
       ),

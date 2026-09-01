@@ -288,3 +288,67 @@ describe("createSubsystemLogger().isEnabled", () => {
     expect(fs.readFileSync(firstDay, "utf8")).not.toContain("second day subsystem log");
   });
 });
+
+// ---------------------------------------------------------------------------
+// The compact-style meta drop, and the `consoleMessage` escape hatch.
+//
+// This pair exists because a real instrument was silently useless for months.
+// `closed_world.resolved_set` logs the full list of tools the agent was offered
+// as STRUCTURED META, and that line was being read in CloudWatch as evidence of
+// what the agent could call. It never carried the list: a container has no TTY,
+// normalizeConsoleStyle() therefore resolves to "compact", and formatConsoleLine()
+// spreads `meta` only in the "json" branch. The line arrived as the bare string.
+//
+// Both directions are asserted deliberately. The first test PINS the drop, so
+// nobody reads a compact line as complete again; the second proves the escape
+// hatch actually closes it. A fix asserted only in the passing direction would
+// not have caught the original defect.
+// ---------------------------------------------------------------------------
+describe("compact console style and structured meta", () => {
+  it("DROPS structured meta from the compact console line", () => {
+    setLoggerOverride({ level: "silent", consoleLevel: "info", consoleStyle: "compact" });
+    const log = installConsoleMethodSpy("log");
+    const logger = createSubsystemLogger("closed-world-gate");
+
+    logger.info("closed_world.resolved_set", {
+      mode: "report",
+      tool_count: 2,
+      tools: ["alpha_tool", "beta_tool"],
+    });
+
+    const line = firstMockArgAsString(log);
+    expect(line).toContain("closed_world.resolved_set");
+    // The defect, pinned: the payload does not reach the console sink.
+    expect(line).not.toContain("alpha_tool");
+    expect(line).not.toContain("tool_count");
+  });
+
+  it("renders `consoleMessage` verbatim so the same detail survives compact style", () => {
+    setLoggerOverride({ level: "silent", consoleLevel: "info", consoleStyle: "compact" });
+    const log = installConsoleMethodSpy("log");
+    const logger = createSubsystemLogger("closed-world-gate");
+
+    logger.info("closed_world.resolved_set", {
+      mode: "report",
+      tool_count: 2,
+      tools: ["alpha_tool", "beta_tool"],
+      consoleMessage: "closed_world.resolved_set tool_count=2 tools=alpha_tool,beta_tool",
+    });
+
+    const line = firstMockArgAsString(log);
+    expect(line).toContain("alpha_tool");
+    expect(line).toContain("beta_tool");
+    expect(line).toContain("tool_count=2");
+  });
+
+  it("still spreads the meta itself when the style IS json", () => {
+    setLoggerOverride({ level: "silent", consoleLevel: "info", consoleStyle: "json" });
+    const log = installConsoleMethodSpy("log");
+    const logger = createSubsystemLogger("closed-world-gate");
+
+    logger.info("closed_world.resolved_set", { tools: ["alpha_tool"] });
+
+    const parsed = JSON.parse(firstMockArgAsString(log)) as { tools?: string[] };
+    expect(parsed.tools).toEqual(["alpha_tool"]);
+  });
+});

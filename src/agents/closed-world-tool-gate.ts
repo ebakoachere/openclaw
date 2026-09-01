@@ -78,11 +78,23 @@ export function applyClosedWorldToolGate(
     const signature = resolved.toSorted().join(",");
     if (signature !== loggedResolvedSignature) {
       loggedResolvedSignature = signature;
+      // `consoleMessage` IS LOAD-BEARING, not decoration. The structured fields
+      // below reach the FILE sink only: formatConsoleLine() in
+      // src/logging/subsystem.ts spreads `meta` exclusively in the `json` style
+      // branch, and normalizeConsoleStyle() resolves to "compact" whenever
+      // stdout is not a TTY -- which is every container. So on staging this line
+      // arrived in CloudWatch as the bare string "closed_world.resolved_set"
+      // with the tool list silently discarded, for as long as it has existed.
+      // That mattered: this line is the ONLY instrument that shows which tools
+      // the agent was actually offered, and it was being read as evidence.
       log.info("closed_world.resolved_set", {
         mode,
         snapshot_present: snapshot !== null,
         tool_count: resolved.length,
         tools: resolved.toSorted(),
+        consoleMessage: `closed_world.resolved_set mode=${mode} snapshot_present=${
+          snapshot !== null
+        } tool_count=${resolved.length} tools=${resolved.toSorted().join(",")}`,
       });
     }
   }
@@ -97,7 +109,13 @@ export function applyClosedWorldToolGate(
     for (const name of wouldDeny) {
       if (!loggedWouldDeny.has(name)) {
         loggedWouldDeny.add(name);
-        log.warn("closed_world.would_deny", { mode, tool: name });
+        // Same reason as above: without `consoleMessage` this warned about a
+        // denial WITHOUT NAMING THE TOOL, which is not an actionable warning.
+        log.warn("closed_world.would_deny", {
+          mode,
+          tool: name,
+          consoleMessage: `closed_world.would_deny mode=${mode} tool=${name}`,
+        });
       }
     }
   }

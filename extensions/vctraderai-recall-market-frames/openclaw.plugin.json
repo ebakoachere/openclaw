@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-recall-market-frames",
+  "name": "VC Trader AI Recall Market Frames",
+  "description": "Read-only workspace-scoped tool: recall past market context frames similar to the one a symbol is in now, from the Market Context Frame store (symbol + anchor timeframe). Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). READ_ONLY per ADR 0078. Ships in SHADOW: the server decides whether frames may be returned, and says so in the envelope.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "recall_market_frames"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

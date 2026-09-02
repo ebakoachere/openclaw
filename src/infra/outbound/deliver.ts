@@ -1587,12 +1587,25 @@ async function deliverOutboundPayloadsCore(
         return;
       }
       deliveryFinished = true;
+      const durationMs = Date.now() - deliveryStartedAt;
       emitMessageDeliveryCompleted({
         channel,
         deliveryKind,
-        durationMs: Date.now() - deliveryStartedAt,
+        durationMs,
         resultCount,
         sessionKey: diagnosticSessionKey,
+      });
+      // A successful platform call used to be silent in the gateway log. The
+      // diagnostic event above is deliberately bounded, but it is in-process
+      // telemetry rather than an operator-visible log record. Keep this line
+      // equally redacted (no destination or payload) so CloudWatch establishes
+      // that an outbound reply was accepted by its channel adapter.
+      log.info("outbound reply delivered", {
+        channel,
+        deliveryKind,
+        durationMs,
+        resultCount,
+        ...(diagnosticSessionKey ? { sessionKey: diagnosticSessionKey } : {}),
       });
     };
     const errorDeliveryDiagnostics = (err: unknown) => {

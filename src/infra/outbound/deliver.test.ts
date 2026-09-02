@@ -60,6 +60,7 @@ const queueMocks = vi.hoisted(() => ({
   >(async (_entryId, fn) => ({ status: "claimed", value: await fn() })),
 }));
 const logMocks = vi.hoisted(() => ({
+  info: vi.fn(),
   warn: vi.fn(),
 }));
 
@@ -100,7 +101,7 @@ vi.mock("../../logging/subsystem.js", () => ({
   createSubsystemLogger: () => {
     const makeLogger = () => ({
       warn: logMocks.warn,
-      info: vi.fn(),
+      info: logMocks.info,
       error: vi.fn(),
       debug: vi.fn(),
       child: vi.fn(() => makeLogger()),
@@ -322,6 +323,7 @@ describe("deliverOutboundPayloads", () => {
       value: await fn(),
     }));
     logMocks.warn.mockClear();
+    logMocks.info.mockClear();
   });
 
   afterEach(() => {
@@ -1115,6 +1117,20 @@ describe("deliverOutboundPayloads", () => {
     expect(deliveryEvents[1]?.sessionKey).toBe("session-1");
     expect(JSON.stringify(deliveryEvents)).not.toContain("secret delivery body");
     expect(JSON.stringify(deliveryEvents)).not.toContain("!room:example");
+
+    // The operator-facing log makes a successful platform send distinguishable
+    // from silence while preserving the same redaction boundary as telemetry.
+    const [message, metadata] = requireMockCall(logMocks.info, "outbound success log");
+    expect(message).toBe("outbound reply delivered");
+    expect(metadata).toMatchObject({
+      channel: "matrix",
+      deliveryKind: "text",
+      resultCount: 1,
+      sessionKey: "session-1",
+    });
+    expect((metadata as Record<string, unknown>).durationMs).toEqual(expect.any(Number));
+    expect(JSON.stringify(metadata)).not.toContain("secret delivery body");
+    expect(JSON.stringify(metadata)).not.toContain("!room:example");
   });
 
   it("emits bounded delivery diagnostics for outbound send failures", async () => {

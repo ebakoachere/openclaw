@@ -587,6 +587,7 @@ function expectDispatchContextFields(expected: {
   OriginatingTo?: unknown;
   ExplicitDeliverRoute?: unknown;
   AccountId?: unknown;
+  ThreadId?: unknown;
   MessageThreadId?: unknown;
   BodyForCommands?: unknown;
   CommandSource?: unknown;
@@ -2211,6 +2212,41 @@ describe("chat directive tag stripping for non-streaming final payloads", () => 
     expect(nodeSend?.[1]).toBe("chat");
     expect(nodeSend?.[2].sessionKey).toBe(sessionKey);
     expect(nodeSend?.[2].state).toBe("final");
+  });
+
+  it("chat.send carries authenticated application thread scope separately from its shared session key", async () => {
+    createTranscriptFixture("openclaw-chat-send-thread-scope-");
+    mockState.finalText = "ok";
+    const respond = vi.fn();
+    const context = createChatContext();
+
+    await runNonStreamingChatSend({
+      context,
+      respond,
+      idempotencyKey: "idem-thread-scope",
+      sessionKey: "agent:main:main",
+      requestParams: { threadId: "11111111-2222-3333-4444-555555555555" },
+      expectBroadcast: false,
+    });
+
+    expectDispatchContextFields({ ThreadId: "11111111-2222-3333-4444-555555555555" });
+  });
+
+  it("chat.send leaves the turn unscoped when threadId is omitted", async () => {
+    createTranscriptFixture("openclaw-chat-send-no-thread-scope-");
+    mockState.finalText = "ok";
+    const respond = vi.fn();
+    const context = createChatContext();
+
+    await runNonStreamingChatSend({
+      context,
+      respond,
+      idempotencyKey: "idem-no-thread-scope",
+      sessionKey: "agent:main:main",
+      expectBroadcast: false,
+    });
+
+    expect(mockState.lastDispatchCtx).not.toHaveProperty("ThreadId");
   });
 
   it("chat.send keeps explicit delivery routes for channel-scoped sessions", async () => {

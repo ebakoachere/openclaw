@@ -1,6 +1,11 @@
 import { Type } from "typebox";
 import { ChatSendSessionKeyString, InputProvenanceSchema, NonEmptyString } from "./primitives.js";
 
+/** Canonical lowercase UUID emitted by Python's `str(uuid.UUID(...))`. */
+const CanonicalLowercaseUuidString = Type.String({
+  pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+});
+
 export const LogsTailParamsSchema = Type.Object(
   {
     cursor: Type.Optional(Type.Integer({ minimum: 0 })),
@@ -36,6 +41,11 @@ export const ChatSendParamsSchema = Type.Object(
   {
     sessionKey: ChatSendSessionKeyString,
     sessionId: Type.Optional(NonEmptyString),
+    /**
+     * Authenticated application thread scope for this turn. This does not
+     * select a session or an outbound reply route.
+     */
+    threadId: Type.Optional(CanonicalLowercaseUuidString),
     message: Type.String(),
     thinking: Type.Optional(Type.String()),
     fastMode: Type.Optional(Type.Boolean()),

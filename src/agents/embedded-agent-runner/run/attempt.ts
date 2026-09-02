@@ -1074,6 +1074,7 @@ export async function runEmbeddedAttempt(
             messageProvider: resolveAttemptToolPolicyMessageProvider(params),
             agentAccountId: params.agentAccountId,
             messageTo: params.messageTo,
+            threadId: params.threadId,
             messageThreadId: params.messageThreadId,
             groupId: params.groupId,
             groupChannel: params.groupChannel,

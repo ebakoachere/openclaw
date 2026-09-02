@@ -179,7 +179,7 @@ describe("defineToolPlugin", () => {
     expect(factory({ sandboxed: false })).toMatchObject({ name: "factory_echo" });
   });
 
-  it("surfaces the per-turn thread id from the session key to execute", async () => {
+  it("prefers authenticated per-turn thread scope and retains specialist session-key fallback", async () => {
     const seen: Array<{ threadId?: string; sessionKey?: string }> = [];
     const entry = defineToolPlugin({
       id: "thread-aware",
@@ -204,37 +204,64 @@ describe("defineToolPlugin", () => {
     entry.register(captured.api);
 
     // Execute-form tools register as a factory of the per-turn tool context.
-    const factory = registerTool.mock.calls[0]?.[0] as (ctx: { sessionKey?: string }) => {
+    const factory = registerTool.mock.calls[0]?.[0] as (ctx: {
+      sessionKey?: string;
+      threadId?: string;
+    }) => {
       execute: (id: string, params: unknown) => Promise<unknown>;
     };
 
     // Turn A: an OpenAI-compatible session key carrying the BFF thread id.
-    const toolA = factory({ sessionKey: "agent:alpha:openai-user:thread-abc" });
+    const toolA = factory({
+      sessionKey: "agent:main:main",
+      threadId: "11111111-2222-3333-4444-555555555555",
+    });
     await toolA.execute("call-a", {});
 
     // Turn B: a DIFFERENT thread id — proves identity is bound per turn (in the
     // factory closure), not memoized module-globally across turns.
-    const toolB = factory({ sessionKey: "agent:alpha:openai-user:thread-xyz" });
+    const toolB = factory({
+      sessionKey: "agent:main:dashboard:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    });
     await toolB.execute("call-b", {});
 
     // Turn C: a non-OpenAI session key (random-UUID main) has no BFF thread id.
-    const toolC = factory({ sessionKey: "agent:alpha:openai:11111111-2222" });
+    const toolC = factory({
+      sessionKey: "agent:main:dashboard:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      threadId: "99999999-8888-7777-6666-555555555555",
+    });
     await toolC.execute("call-c", {});
 
+    const toolD = factory({ sessionKey: "agent:main:main" });
+    await toolD.execute("call-d", {});
+
     expect(seen).toEqual([
-      { threadId: "thread-abc", sessionKey: "agent:alpha:openai-user:thread-abc" },
-      { threadId: "thread-xyz", sessionKey: "agent:alpha:openai-user:thread-xyz" },
-      { threadId: undefined, sessionKey: "agent:alpha:openai:11111111-2222" },
+      {
+        threadId: "11111111-2222-3333-4444-555555555555",
+        sessionKey: "agent:main:main",
+      },
+      {
+        threadId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        sessionKey: "agent:main:dashboard:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      },
+      {
+        threadId: "99999999-8888-7777-6666-555555555555",
+        sessionKey: "agent:main:dashboard:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      },
+      { threadId: undefined, sessionKey: "agent:main:main" },
     ]);
   });
 
-  it("extractThreadIdFromSessionKey parses the openai-user thread id", () => {
+  it("extractThreadIdFromSessionKey parses specialist and legacy session-key thread ids", () => {
+    expect(
+      extractThreadIdFromSessionKey("agent:main:dashboard:11111111-2222-3333-4444-555555555555"),
+    ).toBe("11111111-2222-3333-4444-555555555555");
     expect(extractThreadIdFromSessionKey("agent:alpha:openai-user:thread-123")).toBe("thread-123");
     // Thread id itself may contain colons; take everything after the marker.
     expect(extractThreadIdFromSessionKey("agent:a:openai-user:tenant:thread-9")).toBe(
       "tenant:thread-9",
     );
-    expect(extractThreadIdFromSessionKey("agent:alpha:openai:uuid")).toBeUndefined();
+    expect(extractThreadIdFromSessionKey("agent:main:main")).toBeUndefined();
     expect(extractThreadIdFromSessionKey("agent:alpha:telegram:chat-1")).toBeUndefined();
     expect(extractThreadIdFromSessionKey("agent:alpha:openai-user:")).toBeUndefined();
     expect(extractThreadIdFromSessionKey(undefined)).toBeUndefined();

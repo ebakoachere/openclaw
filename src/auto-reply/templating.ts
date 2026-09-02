@@ -271,6 +271,11 @@ export type MsgContext = {
   AcpDispatchTailAfterReset?: boolean;
   /** Gateway client scopes when the message originates from the gateway. */
   GatewayClientScopes?: string[];
+  /**
+   * Authenticated application thread scope for this turn. Unlike
+   * MessageThreadId, this is not provider reply-routing metadata.
+   */
+  ThreadId?: string;
   /** Thread identifier (Telegram topic id or Matrix thread event id). */
   MessageThreadId?: string | number;
   /** Provider-native thread target for reply delivery without making the session thread-scoped. */

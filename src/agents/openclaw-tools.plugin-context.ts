@@ -11,6 +11,8 @@ export type OpenClawPluginToolOptions = {
   agentChannel?: GatewayMessageChannel;
   agentAccountId?: string;
   agentTo?: string;
+  /** Authenticated application thread scope for plugin tool callbacks. */
+  threadId?: string;
   agentThreadId?: string | number;
   agentDir?: string;
   workspaceDir?: string;
@@ -72,6 +74,7 @@ export function resolveOpenClawPluginToolInputs(params: {
       agentId: sessionAgentId,
       sessionKey: options?.agentSessionKey,
       sessionId: options?.sessionId,
+      threadId: options?.threadId,
       activeModel,
       browser: {
         sandboxBridgeUrl: options?.sandboxBrowserBridgeUrl,

@@ -1545,6 +1545,7 @@ export async function runEmbeddedAgent(
             messageProvider: params.messageProvider,
             agentAccountId: params.agentAccountId,
             messageTo: params.messageTo,
+            threadId: params.threadId,
             messageThreadId: params.messageThreadId,
             groupId: params.groupId,
             groupChannel: params.groupChannel,

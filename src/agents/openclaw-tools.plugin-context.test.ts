@@ -40,6 +40,19 @@ describe("openclaw plugin tool context", () => {
     expect(result.context.sessionId).toBe("a1b2c3d4-e5f6-7890-abcd-ef1234567890");
   });
 
+  it("forwards authenticated application thread scope separately from delivery routing", () => {
+    const result = resolveOpenClawPluginToolInputs({
+      options: {
+        config: {} as never,
+        threadId: "11111111-2222-3333-4444-555555555555",
+        agentThreadId: "1710000000.000100",
+      },
+    });
+
+    expect(result.context.threadId).toBe("11111111-2222-3333-4444-555555555555");
+    expect(result.context.deliveryContext).toMatchObject({ threadId: "1710000000.000100" });
+  });
+
   it("forwards runtime-owned active model metadata", () => {
     const result = resolveOpenClawPluginToolInputs({
       options: {

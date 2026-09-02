@@ -55,6 +55,8 @@ export type RunEmbeddedAgentParams = {
   memoryFlushWritePath?: string;
   /** Delivery target for topic/thread routing. */
   messageTo?: string;
+  /** Authenticated application thread scope for this turn's tool callbacks. */
+  threadId?: string;
   /** Thread/topic identifier for routing replies to the originating thread. */
   messageThreadId?: string | number;
   /** Group id for channel-level tool policy resolution. */

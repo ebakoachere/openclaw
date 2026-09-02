@@ -209,6 +209,7 @@ function buildEmbeddedContextFromTemplate(params: {
       originatingTo: params.sessionCtx.OriginatingTo,
       to: params.sessionCtx.To,
     }),
+    threadId: params.sessionCtx.ThreadId,
     messageThreadId: params.sessionCtx.MessageThreadId ?? undefined,
     memberRoleIds: normalizeMemberRoleIds(params.sessionCtx.MemberRoleIds),
     // Provider threading context for tool auto-injection

@@ -25,6 +25,8 @@ export type OpenClawPluginToolContext = {
   sessionKey?: string;
   /** Ephemeral session UUID - regenerated on /new and /reset. Use for per-conversation isolation. */
   sessionId?: string;
+  /** Authenticated application thread scope for this turn's tool callbacks. */
+  threadId?: string;
   /**
    * Runtime-supplied active model metadata for informational use, diagnostics,
    * and plugin-owned policy decisions. This is not a security boundary against

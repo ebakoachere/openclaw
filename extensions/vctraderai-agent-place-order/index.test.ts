@@ -150,6 +150,35 @@ describe("vctraderai-agent-place-order", () => {
     expect(hasThreadHeader).toBe(false);
   });
 
+  it("keeps an unscoped execute callback fail-closed at the BFF", async () => {
+    let hasThreadHeader = true;
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      hasThreadHeader = new Headers(init?.headers).has("x-openclaw-thread");
+      return new Response(
+        JSON.stringify({ detail: { code: "openclaw_execute_requires_thread_scope" } }),
+        {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }) as typeof globalThis.fetch;
+
+    await expect(
+      runAgentPlaceOrder(
+        {
+          account_id: "acct-1",
+          symbol: "XAU_USD",
+          side: "buy",
+          qty: "0.10",
+          stop_loss: 1900,
+          intended_price: 1925,
+        },
+        { fetchImpl },
+      ),
+    ).rejects.toMatchObject({ detail: { code: "bff_403", status: 403 } });
+    expect(hasThreadHeader).toBe(false);
+  });
+
   it("surfaces a structured error on bff 4xx", async () => {
     const fetchImpl = (async () =>
       new Response("forbidden", {

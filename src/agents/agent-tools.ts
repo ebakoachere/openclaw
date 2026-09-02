@@ -379,6 +379,8 @@ export function createOpenClawCodingTools(options?: {
   messageProvider?: string;
   agentAccountId?: string;
   messageTo?: string;
+  /** Authenticated application thread scope for plugin tool callbacks. */
+  threadId?: string;
   messageThreadId?: string | number;
   sandbox?: SandboxContext | null;
   sessionKey?: string;
@@ -880,6 +882,7 @@ export function createOpenClawCodingTools(options?: {
             agentChannel: resolveGatewayMessageChannel(options?.messageProvider),
             agentAccountId: options?.agentAccountId,
             agentTo: options?.messageTo,
+            threadId: options?.threadId,
             agentThreadId: options?.messageThreadId,
             agentDir: options?.agentDir,
             workspaceDir: workspaceRoot,

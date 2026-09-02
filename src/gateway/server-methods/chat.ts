@@ -2353,6 +2353,7 @@ export const chatHandlers: GatewayRequestHandlers = {
     const p = params as {
       sessionKey: string;
       sessionId?: string;
+      threadId?: string;
       message: string;
       thinking?: string;
       fastMode?: boolean;
@@ -2752,6 +2753,7 @@ export const chatHandlers: GatewayRequestHandlers = {
         OriginatingTo: originatingTo,
         ExplicitDeliverRoute: explicitDeliverRoute,
         AccountId: accountId,
+        ...(p.threadId ? { ThreadId: p.threadId } : {}),
         MessageThreadId: messageThreadId,
         ChatType: "direct",
         ...(commandSource ? { CommandSource: commandSource } : {}),

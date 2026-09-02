@@ -214,6 +214,7 @@ describe("agent-runner-utils", () => {
       sessionCtx: {
         Provider: "OpenAI",
         To: "channel-1",
+        ThreadId: "11111111-2222-3333-4444-555555555555",
         SenderId: "sender-1",
         MemberRoleIds: ["admin", " ", "operator"],
       },
@@ -230,6 +231,7 @@ describe("agent-runner-utils", () => {
     expect(resolved.embeddedContext.agentId).toBe(run.agentId);
     expect(resolved.embeddedContext.messageProvider).toBe("openai");
     expect(resolved.embeddedContext.messageTo).toBe("channel-1");
+    expect(resolved.embeddedContext.threadId).toBe("11111111-2222-3333-4444-555555555555");
     expect(resolved.embeddedContext.memberRoleIds).toEqual(["admin", "operator"]);
     expect(resolved.senderContext).toEqual({
       senderId: "sender-1",

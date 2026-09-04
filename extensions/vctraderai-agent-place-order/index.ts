@@ -33,7 +33,16 @@ export type AgentPlaceOrderParams = {
   account_id: string;
   symbol: string;
   side: string;
-  qty: string | number;
+  /**
+   * OPTIONAL. Omitted, the platform sizes the order from the account's own Risk
+   * Settings page (risk per trade x balance) before the order reaches the broker.
+   * Supplied, it is forwarded untouched and overrides that sizing.
+   *
+   * It is forwarded ONLY when present: the boundary refuses a body that carries
+   * both a qty and a risk-budget sizing request, so an `undefined` must not be
+   * serialised as a null.
+   */
+  qty?: string | number;
   stop_loss: string | number;
   intended_price: string | number;
   take_profit?: string | number;
@@ -60,10 +69,16 @@ export async function runAgentPlaceOrder(
     account_id: params.account_id,
     symbol: params.symbol,
     side: params.side,
-    qty: params.qty,
     stop_loss: params.stop_loss,
     intended_price: params.intended_price,
   };
+  // Forwarded ONLY when supplied, exactly like take_profit below. An absent qty
+  // must leave the key OFF the body rather than send null: the platform reads a
+  // missing qty as "size this from the account's Risk Settings page", and it
+  // refuses a body that tries to say both things at once.
+  if (params.qty !== undefined) {
+    body.qty = params.qty;
+  }
   if (params.take_profit !== undefined) {
     body.take_profit = params.take_profit;
   }
@@ -81,13 +96,13 @@ export default defineToolPlugin({
   id: "vctraderai-agent-place-order",
   name: "VC Trader AI Agent Place Order",
   description:
-    "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, qty, stop_loss and intended_price. qty is in the BROKER'S OWN units -- LOTS on MT5, SHARES on Alpaca -- never a cash amount; on MT5 a qty of 1 is ONE STANDARD LOT, which for XAUUSD is 100 ounces, so size from the instrument rather than from the number. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full PRE-TRADE risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
+    "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, stop_loss and intended_price. qty is OPTIONAL: omit it and the platform sizes the order from the account's own Risk Settings page (risk per trade x balance), which is the normal way to place one; supply it only to override that sizing. qty is in the BROKER'S OWN units -- LOTS on MT5, SHARES on Alpaca -- never a cash amount; on MT5 a qty of 1 is ONE STANDARD LOT, which for XAUUSD is 100 ounces, so size from the instrument rather than from the number. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full PRE-TRADE risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
   tools: (tool) => [
     tool({
       name: AGENT_PLACE_ORDER_TOOL_NAME,
       label: "Agent Place Order",
       description:
-        "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, qty, stop_loss and intended_price. qty is in the BROKER'S OWN units -- LOTS on MT5, SHARES on Alpaca -- never a cash amount; on MT5 a qty of 1 is ONE STANDARD LOT, which for XAUUSD is 100 ounces, so size from the instrument rather than from the number. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full PRE-TRADE risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
+        "Autonomously place a live order, with a MANDATORY stop-loss, while the owner's autonomous-unlock window is open. Requires account_id, symbol, side, stop_loss and intended_price. qty is OPTIONAL: omit it and the platform sizes the order from the account's own Risk Settings page (risk per trade x balance), which is the normal way to place one; supply it only to override that sizing. qty is in the BROKER'S OWN units -- LOTS on MT5, SHARES on Alpaca -- never a cash amount; on MT5 a qty of 1 is ONE STANDARD LOT, which for XAUUSD is 100 ounces, so size from the instrument rather than from the number. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. On success the boundary PUBLISHES the intent onto the workspace command queue and returns execution_status 'published_pending' with an idempotency_key -- that is NOT a fill. The node runs the full PRE-TRADE risk gate and submits to the broker afterwards, so confirm the real terminal outcome with get_order_outcome(idempotency_key=...) before telling the owner anything filled. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id to place the order on.",
@@ -101,9 +116,12 @@ export default defineToolPlugin({
           description: "Order side: buy or sell.",
           minLength: 1,
         }),
-        qty: Type.Union([Type.String(), Type.Number()], {
-          description: "Order size in the BROKER'S OWN units: LOTS on MT5, SHARES on Alpaca. NEVER a cash amount and never a number of ounces or coins. On MT5 qty=1 is one standard lot -- for XAUUSD that is 100 ounces, and 0.01 is the usual micro-lot. Confirm the instrument before choosing a number.",
-        }),
+        qty: Type.Optional(
+          Type.Union([Type.String(), Type.Number()], {
+            description:
+              "OPTIONAL. Omit it to size from the account's Risk Settings page (risk per trade x balance) -- that is the platform's own sizing and the normal way to place an order. Supply it only to override, in the BROKER'S OWN units: LOTS on MT5, SHARES on Alpaca. NEVER a cash amount and never a number of ounces or coins. On MT5 qty=1 is one standard lot -- for XAUUSD that is 100 ounces, and 0.01 is the usual micro-lot. Confirm the instrument before choosing a number.",
+          }),
+        ),
         stop_loss: Type.Union([Type.String(), Type.Number()], {
           description: "Protective stop-loss price. MANDATORY - no naked orders.",
         }),

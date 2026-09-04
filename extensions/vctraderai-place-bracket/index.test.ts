@@ -131,4 +131,78 @@ describe("vctraderai-place-bracket", () => {
       label: "Place Bracket",
     });
   });
+
+  // W15 LANE QTY. Omitting qty is how the caller asks the platform to size the
+  // bracket from the account's Risk Settings page. The boundary refuses a body
+  // that carries both an explicit qty and a risk-budget request, so an absent
+  // qty must leave the key OFF the body -- not send a null, and not invent a
+  // `size` field alongside it.
+  it("OMITS qty entirely when it is not supplied, so the platform sizes from the account's risk budget", async () => {
+    let body: Record<string, unknown> = {};
+    await runPlaceBracket(
+      {
+        account_id: "acct-1",
+        symbol: "EURUSD",
+        side: "BUY",
+        stop_loss: "1.0950",
+        take_profit: "1.1100",
+        intended_price: "1.1000",
+      },
+      {
+        bffFetch: async (_path, options) => {
+          body = (options?.body ?? {}) as Record<string, unknown>;
+          return {};
+        },
+      },
+    );
+    expect(Object.keys(body)).not.toContain("qty");
+    expect(Object.keys(body)).not.toContain("size");
+    // Controls: every OTHER mandatory field is still on the wire, so a body
+    // that silently lost its contents cannot pass this test.
+    for (const key of [
+      "account_id",
+      "symbol",
+      "side",
+      "stop_loss",
+      "take_profit",
+      "intended_price",
+    ]) {
+      expect(Object.keys(body)).toContain(key);
+      expect(body[key]).not.toBeUndefined();
+    }
+  });
+
+  it("still forwards qty untouched when the caller supplies one", async () => {
+    let body: Record<string, unknown> = {};
+    await runPlaceBracket(
+      {
+        account_id: "acct-1",
+        symbol: "EURUSD",
+        side: "BUY",
+        qty: "0.01",
+        stop_loss: "1.0950",
+        take_profit: "1.1100",
+        intended_price: "1.1000",
+      },
+      {
+        bffFetch: async (_path, options) => {
+          body = (options?.body ?? {}) as Record<string, unknown>;
+          return {};
+        },
+      },
+    );
+    expect(body.qty).toBe("0.01");
+  });
+
+  it("declares qty OPTIONAL in the tool schema, with the mandatory fields still required", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-place-bracket" });
+    plugin.register(captured.api);
+    const schema: any = (captured.tools[0] as any).parameters;
+    const required: string[] = schema?.required ?? [];
+    expect(required).toContain("account_id");
+    expect(required).toContain("stop_loss");
+    expect(required).toContain("take_profit");
+    expect(required).not.toContain("qty");
+    expect(schema?.properties?.qty).toBeDefined();
+  });
 });

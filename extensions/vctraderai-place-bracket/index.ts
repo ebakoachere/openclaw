@@ -25,7 +25,15 @@ export type PlaceBracketParams = {
   account_id: string;
   symbol: string;
   side: string;
-  qty: string;
+  /**
+   * OPTIONAL. Omitted, the platform sizes the order from the account's own Risk
+   * Settings page (risk per trade x balance). Supplied, it is forwarded
+   * untouched and overrides that sizing.
+   *
+   * Forwarded ONLY when present: the boundary refuses a body that carries both a
+   * qty and a risk-budget sizing request, so an `undefined` must not become a null.
+   */
+  qty?: string;
   stop_loss: string;
   take_profit: string;
   intended_price: string;
@@ -54,7 +62,11 @@ export async function runPlaceBracket(
       account_id: params.account_id,
       symbol: params.symbol,
       side: params.side,
-      qty: params.qty,
+      // Forwarded ONLY when supplied, in the same idiom client_order_id uses
+      // below. An absent qty must leave the key OFF the body rather than send
+      // null: the platform reads a missing qty as "size this from the account's
+      // Risk Settings page", and refuses a body that says both things at once.
+      ...(params.qty === undefined ? {} : { qty: params.qty }),
       stop_loss: params.stop_loss,
       take_profit: params.take_profit,
       intended_price: params.intended_price,
@@ -68,21 +80,24 @@ export default defineToolPlugin({
   id: "vctraderai-place-bracket",
   name: "VC Trader AI Place Bracket",
   description:
-    "Publish a bracket entry with a stop-loss AND a take-profit, both mandatory. A success returns accepted_queued, which is NOT executed: a runtime node runs the full pre-trade risk gate and submits to the broker afterwards. Poll the minted idempotency_key for the real outcome and never report a fill from this response. If the autonomous-unlock window is CLOSED the call does NOT go through and NOTHING is staged for approval: it returns downgraded_to_staged true with a lock_reason, and there is no card, no queue entry and no pending approval anywhere. Tell the owner the window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged or awaiting approval. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
+    "Publish a bracket entry with a stop-loss AND a take-profit, both mandatory. qty is OPTIONAL: omit it and the platform sizes the bracket from the account's own Risk Settings page (risk per trade x balance), which is the normal way to place one; supply it only to override that sizing, in the broker's own units (LOTS on MT5, SHARES on Alpaca). A success returns accepted_queued, which is NOT executed: a runtime node runs the full pre-trade risk gate and submits to the broker afterwards. Poll the minted idempotency_key for the real outcome and never report a fill from this response. If the autonomous-unlock window is CLOSED the call does NOT go through and NOTHING is staged for approval: it returns downgraded_to_staged true with a lock_reason, and there is no card, no queue entry and no pending approval anywhere. Tell the owner the window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged or awaiting approval. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
   tools: (tool) => [
     tool({
       name: PLACE_BRACKET_TOOL_NAME,
       label: "Place Bracket",
       description:
-        "Publish a bracket entry with a stop-loss AND a take-profit, both mandatory. A success returns accepted_queued, which is NOT executed: a runtime node runs the full pre-trade risk gate and submits to the broker afterwards. Poll the minted idempotency_key for the real outcome and never report a fill from this response. If the autonomous-unlock window is CLOSED the call does NOT go through and NOTHING is staged for approval: it returns downgraded_to_staged true with a lock_reason, and there is no card, no queue entry and no pending approval anywhere. Tell the owner the window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged or awaiting approval. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
+        "Publish a bracket entry with a stop-loss AND a take-profit, both mandatory. qty is OPTIONAL: omit it and the platform sizes the bracket from the account's own Risk Settings page (risk per trade x balance), which is the normal way to place one; supply it only to override that sizing, in the broker's own units (LOTS on MT5, SHARES on Alpaca). A success returns accepted_queued, which is NOT executed: a runtime node runs the full pre-trade risk gate and submits to the broker afterwards. Poll the minted idempotency_key for the real outcome and never report a fill from this response. If the autonomous-unlock window is CLOSED the call does NOT go through and NOTHING is staged for approval: it returns downgraded_to_staged true with a lock_reason, and there is no card, no queue entry and no pending approval anywhere. Tell the owner the window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged or awaiting approval. THREE OUTCOMES THAT ARE NOT FAILURES OF YOURS, and must be relayed as themselves rather than as a generic error: place_route_undetermined (503) means the platform could not tell which execution path owns this account, so it refused rather than guessing; account_not_live_capable (409) means the account is not configured for live orders at all, which no retry fixes; place_simulated_unexpectedly (503) means a path that should have been live returned a simulated fill, and the order was refused rather than reported as real. Say which one happened and what it means; never collapse them into one failure.",
       parameters: Type.Object({
         account_id: Type.String({ description: "Live account id to place on.", minLength: 1 }),
         symbol: Type.String({ description: "Instrument symbol.", minLength: 1 }),
         side: Type.String({ description: "BUY or SELL.", minLength: 1 }),
-        qty: Type.String({
-          description: "Order quantity as a decimal STRING, in the BROKER'S OWN volume units: LOTS on MT5, SHARES on Alpaca. On MT5 a qty of 1 is one standard lot -- for XAUUSD that is 100 ounces.",
-          minLength: 1,
-        }),
+        qty: Type.Optional(
+          Type.String({
+            description:
+              "OPTIONAL. Omit it to size from the account's Risk Settings page (risk per trade x balance) -- that is the platform's own sizing and the normal way to place a bracket. Supply it only to override, as a decimal STRING in the BROKER'S OWN volume units: LOTS on MT5, SHARES on Alpaca. On MT5 a qty of 1 is one standard lot -- for XAUUSD that is 100 ounces.",
+            minLength: 1,
+          }),
+        ),
         stop_loss: Type.String({
           description: "Stop-loss price as a decimal STRING. MANDATORY.",
           minLength: 1,

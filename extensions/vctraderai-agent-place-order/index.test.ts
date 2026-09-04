@@ -110,6 +110,78 @@ describe("vctraderai-agent-place-order", () => {
     expect("client_order_id" in capturedBody).toBe(false);
   });
 
+  // W15 LANE QTY. The platform sizes an order from the account's Risk Settings
+  // page when the body carries NO qty key, and REFUSES a body that asks for both
+  // an explicit qty and risk-budget sizing. So "absent" has to mean absent: not
+  // null, and not accompanied by a `size` field of our own invention.
+  it("OMITS qty entirely when it is not supplied, so the platform sizes from the account's risk budget", async () => {
+    let capturedBody: any = undefined;
+    let capturedRaw = "";
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedRaw = typeof init?.body === "string" ? init.body : "";
+      capturedBody = capturedRaw ? JSON.parse(capturedRaw) : undefined;
+      return new Response(JSON.stringify({ accepted_queued: true }), { status: 200 });
+    }) as typeof globalThis.fetch;
+    await runAgentPlaceOrder(
+      {
+        account_id: "acct-1",
+        symbol: "XAU_USD",
+        side: "buy",
+        stop_loss: 1900.5,
+        intended_price: 1925.0,
+      },
+      { fetchImpl },
+    );
+    expect(capturedBody).toEqual({
+      account_id: "acct-1",
+      symbol: "XAU_USD",
+      side: "buy",
+      stop_loss: 1900.5,
+      intended_price: 1925.0,
+    });
+    expect("qty" in capturedBody).toBe(false);
+    // A serialised null would be a DIFFERENT request than an absent key, and the
+    // key never appears in the wire bytes either.
+    expect(capturedRaw).not.toContain("qty");
+    // We must not invent `size: "risk_budget"`: sending it alongside a qty is a
+    // refusal, and omission already means the same thing.
+    expect("size" in capturedBody).toBe(false);
+  });
+
+  it("still forwards qty untouched when the caller supplies one", async () => {
+    let capturedBody: any = undefined;
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+      return new Response(JSON.stringify({ accepted_queued: true }), { status: 200 });
+    }) as typeof globalThis.fetch;
+    await runAgentPlaceOrder(
+      {
+        account_id: "acct-1",
+        symbol: "XAU_USD",
+        side: "buy",
+        qty: "0.10",
+        stop_loss: 1900.5,
+        intended_price: 1925.0,
+      },
+      { fetchImpl },
+    );
+    expect(capturedBody.qty).toBe("0.10");
+  });
+
+  it("declares qty OPTIONAL in the tool schema, with the mandatory fields still required", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-place-order" });
+    plugin.register(captured.api);
+    const schema: any = (captured.tools[0] as any).parameters;
+    const required: string[] = schema?.required ?? [];
+    // Controls: the fields that MUST stay required, so an empty/renamed
+    // `required` array cannot make this test pass by accident.
+    expect(required).toContain("account_id");
+    expect(required).toContain("stop_loss");
+    expect(required).toContain("intended_price");
+    expect(required).not.toContain("qty");
+    expect(schema?.properties?.qty).toBeDefined();
+  });
+
   it("stamps X-OpenClaw-Thread with the per-turn thread id when supplied", async () => {
     let capturedThreadHeader: string | null = null;
     const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {

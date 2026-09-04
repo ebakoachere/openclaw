@@ -1534,6 +1534,10 @@ export async function runEmbeddedAgent(
           } else {
             parentAbortSignal?.addEventListener("abort", relayParentAbort, { once: true });
           }
+          // [threadscope] HOP 3 of 4 — what the runner hands the tools.
+          console.error(
+            `[threadscope] hop3.run_embedded_agent params_threadId=${params.threadId ?? "ABSENT"}`,
+          );
           const rawAttempt = await runEmbeddedAttemptWithBackend({
             sessionId: activeSessionId,
             sessionKey: resolvedSessionKey,

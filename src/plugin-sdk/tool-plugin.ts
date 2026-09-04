@@ -237,8 +237,23 @@ export function defineToolPlugin<TConfigSchema extends TSchema | undefined = und
             label: tool.label,
             description: tool.description,
             parameters: tool.parameters,
-            execute: async (toolCallId, params, signal, onUpdate) =>
-              wrapToolPluginResult(
+            execute: async (toolCallId, params, signal, onUpdate) => {
+              // [threadscope] HOP 4 of 4 — the value that decides whether the
+              // plugin sends X-OpenClaw-Thread. On the shared web session
+              // (agent:main:main) the session-key fallback yields undefined, so
+              // toolContext.threadId is the ONLY source; ABSENT here with hop3
+              // present localises the loss to the tool-context handoff.
+              console.error(
+                `[threadscope] hop4.tool_plugin tool=${tool.name} ` +
+                  `ctx_threadId=${toolContext.threadId ?? "ABSENT"} ` +
+                  `sessionKey=${toolContext.sessionKey ?? "-"} ` +
+                  `resolved=${
+                    toolContext.threadId ??
+                    extractThreadIdFromSessionKey(toolContext.sessionKey) ??
+                    "ABSENT"
+                  }`,
+              );
+              return wrapToolPluginResult(
                 await execute(params, config, {
                   api,
                   signal,
@@ -248,7 +263,8 @@ export function defineToolPlugin<TConfigSchema extends TSchema | undefined = und
                   threadId:
                     toolContext.threadId ?? extractThreadIdFromSessionKey(toolContext.sessionKey),
                 }),
-              ),
+              );
+            },
           }),
           { name: tool.name, ...(tool.optional ? { optional: true } : {}) },
         );

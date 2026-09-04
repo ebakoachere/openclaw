@@ -195,6 +195,15 @@ function buildEmbeddedContextFromTemplate(params: {
   hasRepliedRef: { value: boolean } | undefined;
 }) {
   const config = params.run.config;
+  // [threadscope] HOP 2 of 4 — the envelope->params bridge. This is the hop no
+  // reading could settle: whether a gateway chat.send turn actually flows
+  // through THIS builder. If hop1 says present and hop2 never prints, the turn
+  // takes another path; if it prints ABSENT, the ctx lost the field above.
+  console.error(
+    `[threadscope] hop2.build_embedded_context sessionCtx_ThreadId=${
+      params.sessionCtx.ThreadId ?? "ABSENT"
+    } sessionKey=${params.run.sessionKey ?? "-"}`,
+  );
   return {
     sessionId: params.run.sessionId,
     sessionKey: params.run.sessionKey,

@@ -2781,6 +2781,16 @@ export const chatHandlers: GatewayRequestHandlers = {
           : {}),
         GatewayClientScopes: client?.connect?.scopes ?? [],
       };
+      // [threadscope] HOP 1 of 4 — did the frame carry threadId, and did it
+      // reach the MsgContext? web-api proved it sends the field
+      // (openclaw_chat_send_frame thread_scope_present=True, 2026-09-04
+      // 06:18:06.977Z) and the execute tool was still refused 12s later, so the
+      // loss is somewhere below this line. Diagnostic only.
+      console.error(
+        `[threadscope] hop1.chat_send frame_threadId=${p.threadId ?? "ABSENT"} ` +
+          `ctx_ThreadId=${(ctx as { ThreadId?: string }).ThreadId ?? "ABSENT"} ` +
+          `sessionKey=${sessionKey}`,
+      );
       if (mediaPathOffloadPaths.length > 0) {
         // Inject offloads via the same MsgContext fields the channel
         // path uses so buildInboundMediaNote renders a real `[media attached:

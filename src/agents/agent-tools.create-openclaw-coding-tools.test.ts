@@ -150,6 +150,9 @@ function expectListIncludes(
 
 describe("createOpenClawCodingTools", () => {
   const testConfig: OpenClawConfig = {};
+  // The real thread id from the 2026-09-04 09:00Z failure, so the fixture and the
+  // CloudWatch evidence read as one story.
+  const THREAD_SCOPE = "f15b740e-3a90-5473-8d72-a9e8cd71ae53";
 
   afterEach(() => {
     resetGlobalHookRunner();
@@ -446,6 +449,68 @@ describe("createOpenClawCodingTools", () => {
 
     expect(createOpenClawToolsMock).toHaveBeenCalledTimes(1);
     expect(latestCreateOpenClawToolsOptions().disablePluginTools).toBe(true);
+  });
+
+  it("carries the authenticated thread scope into full OpenClaw tool construction", () => {
+    // This is the live path: a full-tool agent has includeOpenClawTools=true, so the
+    // plugin tools are built by createOpenClawTools and NOT by the plugin-only
+    // branch below. The thread scope is what the gateway stamps X-OpenClaw-Thread
+    // from; without it every execute-class tool is refused 403
+    // openclaw_execute_requires_thread_scope. Measured on the deployed image
+    // 2026-09-04 09:00Z: hop3 in the runner carried
+    // f15b740e-3a90-5473-8d72-a9e8cd71ae53 and hop4 in the tool plugin reported
+    // ABSENT, because this call site dropped it.
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    createOpenClawToolsMock.mockClear();
+
+    createOpenClawCodingTools({
+      config: testConfig,
+      threadId: THREAD_SCOPE,
+      toolConstructionPlan: {
+        includeBaseCodingTools: false,
+        includeShellTools: false,
+        includeChannelTools: false,
+        includeOpenClawTools: true,
+        includePluginTools: true,
+      },
+    });
+
+    expect(createOpenClawToolsMock).toHaveBeenCalledTimes(1);
+    expect(latestCreateOpenClawToolsOptions().threadId).toBe(THREAD_SCOPE);
+  });
+
+  it("carries the same thread scope on the plugin-only branch", () => {
+    // The contrast, and the reason this shipped. This branch ALWAYS forwarded the
+    // thread scope, so every existing forwarding test here is green and a reader
+    // checking "is threadId plumbed through?" finds a correct line and stops. Both
+    // branches must agree or the next reader draws the same wrong conclusion.
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    createOpenClawToolsMock.mockClear();
+    const resolvePluginToolsSpy = vi
+      .spyOn(openClawPluginTools, "resolveOpenClawPluginToolsForOptions")
+      .mockReturnValue([]);
+
+    try {
+      createOpenClawCodingTools({
+        config: testConfig,
+        includeCoreTools: false,
+        runtimeToolAllowlist: ["memory_search"],
+        threadId: THREAD_SCOPE,
+        toolConstructionPlan: {
+          includeBaseCodingTools: false,
+          includeShellTools: false,
+          includeChannelTools: false,
+          includeOpenClawTools: false,
+          includePluginTools: true,
+        },
+      });
+
+      expect(createOpenClawToolsMock).not.toHaveBeenCalled();
+      expect(resolvePluginToolsSpy).toHaveBeenCalledTimes(1);
+      expect(resolvePluginToolsSpy.mock.calls[0]?.[0].options?.threadId).toBe(THREAD_SCOPE);
+    } finally {
+      resolvePluginToolsSpy.mockRestore();
+    }
   });
 
   it("keeps plugin-only construction off the OpenClaw core factory", () => {

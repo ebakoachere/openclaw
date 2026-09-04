@@ -963,6 +963,12 @@ export function createOpenClawCodingTools(options?: {
           agentChannel: resolveGatewayMessageChannel(options?.messageProvider),
           agentAccountId: options?.agentAccountId,
           agentTo: options?.messageTo,
+          // The authenticated thread scope, NOT the messaging thread on the next
+          // line. The plugin-only branch above has always passed this; this branch
+          // never did, so a full-tool agent reached the plugin tool context with
+          // toolContext.threadId undefined and every execute-class call was refused
+          // 403 openclaw_execute_requires_thread_scope.
+          threadId: options?.threadId,
           agentThreadId: options?.messageThreadId,
           agentGroupId: options?.groupId ?? null,
           agentGroupChannel: options?.groupChannel ?? null,

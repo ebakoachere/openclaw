@@ -76,6 +76,16 @@ export function createOpenClawTools(
     allowHostBrowserControl?: boolean;
     agentSessionKey?: string;
     /**
+     * Authenticated application thread scope for plugin tool callbacks.
+     *
+     * Distinct from `agentThreadId`, which is the MESSAGING thread (Telegram
+     * topic, Slack ts) and is `string | number`. This one is the app-level scope
+     * the gateway stamps `X-OpenClaw-Thread` from; execute-class plugin tools are
+     * refused without it. Forwarded to plugin tools through the `options`
+     * pass-through below.
+     */
+    threadId?: string;
+    /**
      * The actual live run session key. When the tool is constructed with a sandbox/policy
      * session key, this allows `session_status({sessionKey:"current"})` to resolve to
      * the live run session instead of the stale sandbox key.

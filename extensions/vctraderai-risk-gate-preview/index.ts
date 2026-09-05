@@ -144,7 +144,10 @@ export default defineToolPlugin({
           Type.Number({ description: "Optional take-profit price." }),
         ),
         quantity: Type.Optional(
-          Type.Number({ description: "Optional order quantity, in the BROKER'S OWN volume units -- LOTS on MT5, SHARES on Alpaca. Not a cash amount. The caps arithmetic is only as meaningful as this number." }),
+          Type.Number({
+            description:
+              "Optional order quantity, in the BROKER'S OWN volume units -- LOTS on MT5, SHARES on an Alpaca equity or ETF, and the BASE ASSET itself on a crypto pair (on BTC/USD a qty of 0.01 is 0.01 BTC). Not a cash amount. The caps arithmetic is only as meaningful as this number.",
+          }),
         ),
         market_mid: Type.Optional(
           Type.Number({

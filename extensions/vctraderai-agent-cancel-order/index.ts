@@ -60,13 +60,13 @@ export default defineToolPlugin({
   id: "vctraderai-agent-cancel-order",
   name: "VC Trader AI Agent Cancel Order",
   description:
-    "Autonomously cancel a live working order while the owner's autonomous-unlock window is open. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. A cancel that does not go through leaves the order LIVE and still able to fill.",
+    "Autonomously cancel a live working order while the account is set to act autonomously. If it is not, the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the account is not currently set to act autonomously, name the lock_reason, and ask them to place it themselves or change the account's execution mode. Never say the action is staged, pending approval or awaiting a card. A cancel that does not go through leaves the order LIVE and still able to fill.",
   tools: (tool) => [
     tool({
       name: AGENT_CANCEL_ORDER_TOOL_NAME,
       label: "Agent Cancel Order",
       description:
-        "Autonomously cancel a live working order while the owner's autonomous-unlock window is open. If the window is closed the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the autonomous-unlock window is closed, name the lock_reason, and ask them to open it or act themselves. Never say the action is staged, pending approval or awaiting a card. A cancel that does not go through leaves the order LIVE and still able to fill.",
+        "Autonomously cancel a live working order while the account is set to act autonomously. If it is not, the call does NOT go through and NOTHING is staged for approval: it returns 200 with execution_status 'downgraded', downgraded_to_staged true and a lock_reason. There is no card, no queue entry and no pending approval anywhere -- tell the owner the account is not currently set to act autonomously, name the lock_reason, and ask them to place it themselves or change the account's execution mode. Never say the action is staged, pending approval or awaiting a card. A cancel that does not go through leaves the order LIVE and still able to fill.",
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id that owns the order.",

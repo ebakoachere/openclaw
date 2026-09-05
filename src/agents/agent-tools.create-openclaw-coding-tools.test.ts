@@ -513,6 +513,111 @@ describe("createOpenClawCodingTools", () => {
     }
   });
 
+  const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+  it("mints a thread scope for a user-originated CHANNEL turn (Telegram)", () => {
+    // W17 item 3. A Telegram turn never goes through `chat.send`, so it carries
+    // no authenticated `threadId` and, on the shared main session key, no
+    // session-key marker either. Before this, `createOpenClawTools` received
+    // threadId=undefined, the plugins omitted X-OpenClaw-Thread, and the BFF
+    // refused every execute tool with 403
+    // openclaw_execute_requires_thread_scope -- while the SAME request placed
+    // from the web chat worked.
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    createOpenClawToolsMock.mockClear();
+
+    createOpenClawCodingTools({
+      config: testConfig,
+      messageProvider: "telegram",
+      sessionKey: "agent:main:main",
+      toolConstructionPlan: {
+        includeBaseCodingTools: false,
+        includeShellTools: false,
+        includeChannelTools: false,
+        includeOpenClawTools: true,
+        includePluginTools: true,
+      },
+    });
+
+    expect(createOpenClawToolsMock).toHaveBeenCalledTimes(1);
+    const minted = latestCreateOpenClawToolsOptions().threadId;
+    expect(minted).toMatch(UUID_SHAPE);
+  });
+
+  it("refuses to scope the wake-classifier turn, which arrives on NO channel", () => {
+    // THE ONE TURN THE GUARD EXISTS FOR. The heartbeat wake-classifier is the
+    // /v1/chat/completions call with no `user` field: no channel, no human. It
+    // must reach the tool context UNSCOPED so every execute-class tool stays
+    // refused fail-closed. Widening the mint to "any turn without a threadId"
+    // would re-open exactly the hole VAA closed.
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    createOpenClawToolsMock.mockClear();
+
+    createOpenClawCodingTools({
+      config: testConfig,
+      sessionKey: "agent:main:main",
+      toolConstructionPlan: {
+        includeBaseCodingTools: false,
+        includeShellTools: false,
+        includeChannelTools: false,
+        includeOpenClawTools: true,
+        includePluginTools: true,
+      },
+    });
+
+    expect(createOpenClawToolsMock).toHaveBeenCalledTimes(1);
+    expect(latestCreateOpenClawToolsOptions().threadId).toBeUndefined();
+  });
+
+  it("leaves an authenticated web thread scope exactly as it arrived", () => {
+    // The web path must not be re-derived: `chat.send.threadId` is the user's
+    // REAL BFF thread, and a minted substitute would detach the turn from the
+    // conversation the owner is reading.
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    createOpenClawToolsMock.mockClear();
+
+    createOpenClawCodingTools({
+      config: testConfig,
+      threadId: THREAD_SCOPE,
+      messageProvider: "telegram",
+      sessionKey: "agent:main:main",
+      toolConstructionPlan: {
+        includeBaseCodingTools: false,
+        includeShellTools: false,
+        includeChannelTools: false,
+        includeOpenClawTools: true,
+        includePluginTools: true,
+      },
+    });
+
+    expect(latestCreateOpenClawToolsOptions().threadId).toBe(THREAD_SCOPE);
+  });
+
+  it("mints the SAME scope for the same channel conversation, and a different one per channel", () => {
+    const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
+    const scopeFor = (messageProvider: string, sessionKey: string) => {
+      createOpenClawToolsMock.mockClear();
+      createOpenClawCodingTools({
+        config: testConfig,
+        messageProvider,
+        sessionKey,
+        toolConstructionPlan: {
+          includeBaseCodingTools: false,
+          includeShellTools: false,
+          includeChannelTools: false,
+          includeOpenClawTools: true,
+          includePluginTools: true,
+        },
+      });
+      return latestCreateOpenClawToolsOptions().threadId;
+    };
+
+    const first = scopeFor("telegram", "agent:main:main");
+    expect(scopeFor("telegram", "agent:main:main")).toBe(first);
+    expect(scopeFor("discord", "agent:main:main")).not.toBe(first);
+    expect(scopeFor("telegram", "agent:main:other")).not.toBe(first);
+  });
+
   it("keeps plugin-only construction off the OpenClaw core factory", () => {
     const createOpenClawToolsMock = vi.mocked(createOpenClawTools);
     createOpenClawToolsMock.mockClear();

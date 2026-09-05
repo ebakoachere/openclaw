@@ -57,13 +57,13 @@ export default defineToolPlugin({
   id: "vctraderai-close-position-partial",
   name: "VC Trader AI Close Position Partial",
   description:
-    "Scale out of a live OPEN position by an explicit volume in LOTS while the owner autonomous-unlock window is open. When the window is locked it downgrades and returns lock_reason, and NO card is created for anyone to approve.",
+    "Scale out of a live OPEN position by an explicit volume in LOTS while the account is set to act autonomously. When it is not, the call downgrades and returns lock_reason, and NO card is created for anyone to approve.",
   tools: (tool) => [
     tool({
       name: CLOSE_POSITION_PARTIAL_TOOL_NAME,
       label: "Close Position Partial",
       description:
-        "Scale out of a live OPEN position by an explicit volume in LOTS while the owner autonomous-unlock window is open. When the window is locked it downgrades and returns lock_reason, and NO card is created for anyone to approve.",
+        "Scale out of a live OPEN position by an explicit volume in LOTS while the account is set to act autonomously. When it is not, the call downgrades and returns lock_reason, and NO card is created for anyone to approve.",
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id that owns the position.",

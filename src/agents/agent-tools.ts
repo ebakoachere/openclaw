@@ -53,6 +53,7 @@ import { describeExecTool, describeProcessTool } from "./bash-tools.descriptions
 import type { ExecToolDefaults } from "./bash-tools.exec-types.js";
 import type { ProcessToolDefaults } from "./bash-tools.process.js";
 import { execSchema, processSchema } from "./bash-tools.schemas.js";
+import { resolveChannelTurnThreadScope } from "./channel-thread-scope.js";
 import { listChannelAgentTools } from "./channel-tools.js";
 import { applyClosedWorldToolGate } from "./closed-world-tool-gate.js";
 import { shouldSuppressManagedWebSearchTool } from "./codex-native-web-search.js";
@@ -882,7 +883,15 @@ export function createOpenClawCodingTools(options?: {
             agentChannel: resolveGatewayMessageChannel(options?.messageProvider),
             agentAccountId: options?.agentAccountId,
             agentTo: options?.messageTo,
-            threadId: options?.threadId,
+            // Same resolution as the full-tool branch below. The two branches
+            // diverging on threadId is EXACTLY the bug that cost two days in
+            // wave 13 (#1729): a value passed correctly on the branch that is
+            // never taken reads as plumbed to every grep.
+            threadId: resolveChannelTurnThreadScope({
+              threadId: options?.threadId,
+              messageProvider: options?.messageProvider,
+              sessionKey: options?.sessionKey,
+            }),
             agentThreadId: options?.messageThreadId,
             agentDir: options?.agentDir,
             workspaceDir: workspaceRoot,
@@ -968,7 +977,19 @@ export function createOpenClawCodingTools(options?: {
           // never did, so a full-tool agent reached the plugin tool context with
           // toolContext.threadId undefined and every execute-class call was refused
           // 403 openclaw_execute_requires_thread_scope.
-          threadId: options?.threadId,
+          //
+          // W17 — AND A CHANNEL TURN MINTS ITS OWN. A Telegram turn never goes
+          // through `chat.send`, so `options.threadId` is undefined for it and
+          // every execute tool was refused 403 from Telegram while the same
+          // request worked in the web chat. `resolveChannelTurnThreadScope`
+          // derives the scope from the CHANNEL SESSION for a user-originated
+          // turn and returns undefined for the wake-classifier, which has no
+          // channel and must stay refused fail-closed.
+          threadId: resolveChannelTurnThreadScope({
+            threadId: options?.threadId,
+            messageProvider: options?.messageProvider,
+            sessionKey: options?.sessionKey,
+          }),
           agentThreadId: options?.messageThreadId,
           agentGroupId: options?.groupId ?? null,
           agentGroupChannel: options?.groupChannel ?? null,

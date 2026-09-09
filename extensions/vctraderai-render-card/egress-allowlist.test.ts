@@ -45,8 +45,8 @@ describe("vctraderai-render-card egress allowlist", () => {
   });
 
   it("sends the params as a JSON body, not as a query string", async () => {
-    // render_card is the first vctraderai tool that POSTs: its params are a
-    // nested object (indicators, annotations) that cannot ride in a query.
+    // render_card POSTs because its params are a nested object (indicators,
+    // annotations) that cannot ride in a query string.
     // A silent fallback to a query string would truncate the intent and the
     // card would be composed from less than the agent asked for.
     let seen: RequestInit | undefined;
@@ -68,7 +68,8 @@ describe("vctraderai-render-card egress allowlist", () => {
     );
     expect(seen?.method).toBe("POST");
     expect(typeof seen?.body).toBe("string");
-    const body = JSON.parse(String(seen?.body));
+    const rawBody = typeof seen?.body === "string" ? seen.body : "";
+    const body = JSON.parse(rawBody);
     expect(body.kind).toBe("chart");
     expect(body.params.annotations[0].session).toBe("london");
     const headers = seen?.headers as Record<string, string>;

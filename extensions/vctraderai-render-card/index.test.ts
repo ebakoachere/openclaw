@@ -14,8 +14,11 @@ function withWorkspace<T>(fn: () => T): T {
   try {
     return fn();
   } finally {
-    if (original === undefined) delete process.env.PFM_WORKSPACE_ID;
-    else process.env.PFM_WORKSPACE_ID = original;
+    if (original === undefined) {
+      delete process.env.PFM_WORKSPACE_ID;
+    } else {
+      process.env.PFM_WORKSPACE_ID = original;
+    }
   }
 }
 

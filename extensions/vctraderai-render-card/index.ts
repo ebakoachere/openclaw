@@ -96,7 +96,7 @@ function oneLine(text: string): string {
 export function summariseCardResult(payload: unknown): string {
   const body =
     payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)
-      ? ((payload as Record<string, unknown>).data as unknown)
+      ? (payload as Record<string, unknown>).data
       : payload;
   if (!body || typeof body !== "object") {
     return "render_card: the platform returned no answer; say so rather than assuming a card appeared.";
@@ -104,7 +104,8 @@ export function summariseCardResult(payload: unknown): string {
   const row = body as Record<string, unknown>;
   if (row.ok === true) {
     const confirmation = typeof row.confirmation === "string" ? oneLine(row.confirmation) : "";
-    return confirmation || `${String(row.kind ?? "card")} rendered.`;
+    const kind = typeof row.kind === "string" && row.kind.length > 0 ? row.kind : "card";
+    return confirmation || `${kind} rendered.`;
   }
   const reason = typeof row.reason === "string" ? oneLine(row.reason) : "";
   return reason

@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-render-card",
+  "name": "VC Trader AI Render Card",
+  "description": "Read-only workspace-scoped tool: ask the platform to render an in-chat card of a given kind. The card is composed SERVER-SIDE from real platform data and reaches the user on its own frame; this tool returns only a one-line confirmation, never the card. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). READ_ONLY per ADR 0078.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "render_card"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -25,10 +25,11 @@ export type BffFetchOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   query?: Record<string, string | undefined>;
   /**
-   * JSON request body. render_card is the first vctraderai tool that needs one:
-   * its `params` are a nested object (indicators, annotations) that cannot ride
-   * in a query string. Serialised with `JSON.stringify` and sent with an
-   * explicit content-type; absent for the GET reads every other tool makes.
+   * JSON request body. render_card needs one because its `params` are a nested
+   * object (indicators, annotations) that cannot ride in a query string; the
+   * read variant of this client, which several sibling tools copy, had no body
+   * support because those tools are GETs. Serialised with `JSON.stringify` and
+   * sent with an explicit content-type.
    */
   body?: unknown;
   headers?: Record<string, string>;

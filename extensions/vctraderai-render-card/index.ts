@@ -75,14 +75,24 @@ function requireWorkspaceId(): string {
   return workspaceId;
 }
 
+/** Longest confirmation the model is ever handed, in characters. */
+const MAX_RESULT_CHARS = 240;
+
 /**
- * The one line the model is told.
+ * Reduce any answer to ONE LINE, and cap it.
  *
- * The BFF returns `{ok, kind, confirmation}` or `{ok: false, reason}`. Both
- * collapse to a single sentence here: the model needs to know whether a card
- * appeared and, if not, why — nothing more. Anything longer would be paid for
- * on every subsequent turn of the thread.
+ * The BFF returns `{ok, kind, confirmation}` or `{ok: false, reason}`, and this
+ * function does not TRUST that: it takes the first line and truncates. The
+ * contract is enforced at the boundary the model actually reads, so a change on
+ * the server — a stack trace in a reason, a card appended to a confirmation —
+ * cannot quietly put a payload back into every later turn of the thread. That
+ * is the whole reason this tool exists, and it should not depend on the other
+ * side of the wire continuing to behave.
  */
+function oneLine(text: string): string {
+  const first = text.split(/[\r\n]/, 1)[0].trim();
+  return first.length > MAX_RESULT_CHARS ? `${first.slice(0, MAX_RESULT_CHARS - 1)}…` : first;
+}
 export function summariseCardResult(payload: unknown): string {
   const body =
     payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)
@@ -93,12 +103,12 @@ export function summariseCardResult(payload: unknown): string {
   }
   const row = body as Record<string, unknown>;
   if (row.ok === true) {
-    const confirmation = typeof row.confirmation === "string" ? row.confirmation.trim() : "";
+    const confirmation = typeof row.confirmation === "string" ? oneLine(row.confirmation) : "";
     return confirmation || `${String(row.kind ?? "card")} rendered.`;
   }
-  const reason = typeof row.reason === "string" ? row.reason.trim() : "";
+  const reason = typeof row.reason === "string" ? oneLine(row.reason) : "";
   return reason
-    ? `No card: ${reason}`
+    ? oneLine(`No card: ${reason}`)
     : "No card, and the platform gave no reason; say so rather than describing one.";
 }
 
@@ -129,7 +139,7 @@ export default defineToolPlugin({
       name: RENDER_CARD_TOOL_NAME,
       label: "Render Card",
       description:
-        "Render an in-chat card. The PLATFORM composes it from real data and shows it to the user; you get back one line saying what appeared, never the card itself. Use this instead of writing the card out yourself: the numbers then come from the store rather than from you, and they cannot be mistyped. Required: kind. Optional: params (what the card is about — e.g. symbol and timeframe for a chart). If the data is not there you are told why, in one sentence; say that rather than describing a card the user cannot see.",
+        "Render an in-chat card. The PLATFORM composes it from real data and shows it to the user; you get back one line saying what appeared, never the card itself. Use this instead of writing the card out yourself: the numbers then come from the store rather than from you, and they cannot be mistyped. TODAY ONLY `chart` COMPOSES (alerts and post_trade follow once their reads land); every other kind returns a one-line refusal telling you to write it as a vn-artifact fence instead, so do not reach for this tool for a digest, a watchlist, a comparison, a change summary, an order ticket, a signal, a specialist report or a news card. Required: kind. Optional: params (what the card is about — e.g. symbol and timeframe for a chart). If the data is not there you are told why, in one sentence; say that rather than describing a card the user cannot see.",
       parameters: Type.Object({
         kind: Type.Union(
           RENDER_CARD_KINDS.map((kind) => Type.Literal(kind)),

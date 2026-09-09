@@ -156,11 +156,49 @@ describe("the kind vocabulary", () => {
     // refused, and a second unauthoritative copy of a governed object is
     // exactly what the persona forbids.
     expect(RENDER_CARD_KINDS).not.toContain("approval");
-    // …and the list is otherwise the full twenty.
+    // …and the list is otherwise the full twenty artifact types minus that
+    // one exclusion: nineteen.
     expect(RENDER_CARD_KINDS.length).toBe(19);
   });
 
   it("is named render_card", () => {
     expect(RENDER_CARD_TOOL_NAME).toBe("render_card");
+  });
+});
+
+describe("the one-line contract is enforced here, not trusted", () => {
+  it("keeps only the FIRST LINE when the server sends more", async () => {
+    // The server is specified to send one line. This does not depend on that:
+    // a change over there — a card appended to a confirmation, a stack trace in
+    // a reason — must not quietly put a payload back into every later turn.
+    const card = JSON.stringify({
+      type: "chart",
+      spec: { series: [{ t: "x", o: 1, h: 2, l: 0, c: 1 }] },
+    });
+    const bffFetch = vi.fn().mockResolvedValue({
+      data: { ok: true, kind: "chart", confirmation: `ok\n${card}` },
+    });
+    const result = await withWorkspace(() => runRenderCard({ kind: "chart" }, { bffFetch }));
+    expect(result).toBe("ok");
+    expect(result).not.toContain("series");
+    expect(result).not.toContain("\n");
+  });
+
+  it("caps a single very long line", async () => {
+    const bffFetch = vi.fn().mockResolvedValue({
+      data: { ok: true, kind: "chart", confirmation: "x".repeat(5000) },
+    });
+    const result = await withWorkspace(() => runRenderCard({ kind: "chart" }, { bffFetch }));
+    expect(result.length).toBeLessThanOrEqual(240);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("cuts a multi-line refusal reason to its first line too", async () => {
+    const bffFetch = vi.fn().mockResolvedValue({
+      data: { ok: false, reason: 'no price data\n  File "x.py", line 1\n    raise' },
+    });
+    const result = await withWorkspace(() => runRenderCard({ kind: "chart" }, { bffFetch }));
+    expect(result).toBe("No card: no price data");
+    expect(result).not.toContain("File");
   });
 });

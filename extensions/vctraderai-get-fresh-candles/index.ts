@@ -7,6 +7,14 @@ import { createBffFetch, type BffFetchFn } from "./src/internal-http-client.js";
 // READ_ONLY per propfirm_manager ADR 0078 (core/openclaw/allowlist.py). Calls
 // the workspace-scoped BFF read as the workspace owner (PFM_AGENT_TOKEN) and
 // returns the verbatim envelope.
+//
+// THE NAME OVERPROMISES. `/live/candles` serves a set from ONE OF THREE places
+// -- a broker fetch, this process's short-lived cache, or the node's warm
+// session feed -- and the envelope carries `source` and `age_seconds` saying
+// which and how old. The description must send the model to those two fields
+// rather than to the tool's name, or a cached set gets read out as live. The
+// tool NAME is a cross-repo contract (the allowlist, the gate, the parity
+// list) and is deliberately left alone; only what the model is TOLD changes.
 
 export const GET_FRESH_CANDLES_TOOL_NAME = "get_fresh_candles";
 
@@ -66,7 +74,7 @@ export default defineToolPlugin({
       name: GET_FRESH_CANDLES_TOOL_NAME,
       label: "Get Fresh Candles",
       description:
-        "Fresh historical candles for a symbol DIRECTLY from the live broker (not the stale daily batch). Required: symbol, account_id. Optional: timeframe (e.g. 1m/1h/1d, default 1h), limit (default 100, max 1000).",
+        'Historical candles for a symbol from the live broker read path (not the stale daily batch). NOT ALWAYS A FRESH FETCH, and the payload says so: read its `source` and `age_seconds`, which are authoritative. `source` is "broker" (fetched just now, age_seconds 0), "cache" (a set this same process fetched moments ago) or "warm" (the node session feed); `age_seconds` is how old the SET is. State the age if it is not 0 and never describe the bars as live without checking those two fields. Required: symbol, account_id. Optional: timeframe (e.g. 1m/1h/1d, default 1h), limit (default 100, max 1000).',
       parameters: Type.Object({
         account_id: Type.String({
           description: "Live account id to read candles for.",

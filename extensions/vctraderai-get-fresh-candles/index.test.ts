@@ -34,6 +34,22 @@ describe("vctraderai-get-fresh-candles", () => {
     });
   });
 
+  it("sends the model to source/age_seconds instead of promising a fresh fetch", () => {
+    // THE HONESTY PIN. `/live/candles` serves a set from ONE OF THREE places --
+    // a broker fetch, this process's short-lived cache, or the node's warm
+    // session feed -- and the envelope says which, via `source` and
+    // `age_seconds`. The description used to promise the broker every time, so
+    // a cached set would be read out to the user as live. The tool NAME still
+    // says "fresh" (it is a cross-repo contract), which is exactly why the
+    // description has to point elsewhere, and why that is pinned here.
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-get-fresh-candles" });
+    plugin.register(captured.api);
+    const description = captured.tools[0]?.description ?? "";
+    expect(description).not.toMatch(/directly from the live broker/i);
+    expect(description).toContain("source");
+    expect(description).toContain("age_seconds");
+  });
+
   it("calls the workspace-scoped read with the owner bearer", async () => {
     let capturedUrl = "";
     let capturedAuth: string | null = null;

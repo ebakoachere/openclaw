@@ -58,8 +58,12 @@ describe("vctraderai-recall-market-frames", () => {
 
   it("asks for symbol and anchor_tf and nothing else required", () => {
     const params = theTool().parameters;
-    expect(Object.keys(params.properties ?? {}).sort()).toEqual(["anchor_tf", "limit", "symbol"]);
-    expect((params.required ?? []).sort()).toEqual(["anchor_tf", "symbol"]);
+    expect(Object.keys(params.properties ?? {}).toSorted()).toEqual([
+      "anchor_tf",
+      "limit",
+      "symbol",
+    ]);
+    expect((params.required ?? []).toSorted()).toEqual(["anchor_tf", "symbol"]);
   });
 
   // Both omissions are deliberate and both are load-bearing. `turn_ref` keys the

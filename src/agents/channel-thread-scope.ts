@@ -38,10 +38,9 @@ import { isDeliverableMessageChannel } from "../utils/message-channel.js";
  *
  * `threadId` means two different things in this codebase, and confusing them
  * would be the third two-vocabularies bug of the week. The channel plugins'
- * `threadId` is a **Telegram topic / Discord thread** id
- * (`extensions/discord/src/channel.conversation.ts`,
- * `extensions/telegram/src/session-conversation.ts`); the BFF's is an
- * **application thread UUID**. Stamping a Telegram chat id into
+ * `threadId` is a **Telegram topic / Discord thread** id in the respective
+ * channel conversation modules; the BFF's is an **application thread UUID**.
+ * Stamping a Telegram chat id into
  * `X-OpenClaw-Thread` would put a chat id where the BFF expects a UUID.
  *
  * So this mints a UUIDv5 from the channel and the session key: stable across
@@ -113,4 +112,5 @@ export function resolveChannelTurnThreadScope(
   return uuidV5(`${channel}:${sessionKey}`, CHANNEL_THREAD_SCOPE_NAMESPACE);
 }
 
-export const __testing = { uuidV5, CHANNEL_THREAD_SCOPE_NAMESPACE };
+const testing = { uuidV5, CHANNEL_THREAD_SCOPE_NAMESPACE };
+export { testing as __testing };

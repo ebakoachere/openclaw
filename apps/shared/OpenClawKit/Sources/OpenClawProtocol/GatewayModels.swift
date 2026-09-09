@@ -6495,6 +6495,7 @@ public struct ChatHistoryParams: Codable, Sendable {
 public struct ChatSendParams: Codable, Sendable {
     public let sessionkey: String
     public let sessionid: String?
+    public let threadid: String?
     public let message: String
     public let thinking: String?
     public let fastmode: Bool?
@@ -6512,6 +6513,7 @@ public struct ChatSendParams: Codable, Sendable {
     public init(
         sessionkey: String,
         sessionid: String?,
+        threadid: String?,
         message: String,
         thinking: String?,
         fastmode: Bool?,
@@ -6528,6 +6530,7 @@ public struct ChatSendParams: Codable, Sendable {
     {
         self.sessionkey = sessionkey
         self.sessionid = sessionid
+        self.threadid = threadid
         self.message = message
         self.thinking = thinking
         self.fastmode = fastmode
@@ -6546,6 +6549,7 @@ public struct ChatSendParams: Codable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case sessionkey = "sessionKey"
         case sessionid = "sessionId"
+        case threadid = "threadId"
         case message
         case thinking
         case fastmode = "fastMode"

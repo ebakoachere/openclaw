@@ -152,6 +152,14 @@ describe("vctraderai-lint-strategy", () => {
     expect(description).toMatch(/update_strategy/);
   });
 
+  it("names the Nautilus runtime and all engine-injected config fields", () => {
+    const description = capturedTool().description ?? "";
+    expect(description).toContain("runtime_tag='nautilus'");
+    expect(description).toContain("instrument_id");
+    expect(description).toContain("pfm_initial_cash");
+    expect(description).toContain("pfm_risk_fraction");
+  });
+
   it("never sends runtime_tag, which is why only the six-key contract can run", () => {
     // The mechanism behind the scope warning, pinned as behaviour rather than
     // prose: the body carries source (+ entry_function) and nothing else, so

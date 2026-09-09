@@ -83,7 +83,7 @@ export default defineToolPlugin({
       name: CREATE_STRATEGY_TOOL_NAME,
       label: "Create Strategy",
       description:
-        "Create a NEW trading strategy directly. name, source_text, runtime_tag, and entry_function are all required. Choose the artifact contract BEFORE writing source: runtime_tag=vbt requires entry_function='run' and the six-key research return contract; lint_strategy validates that shape. runtime_tag=nautilus requires entry_function to name the native Strategy subclass and a canonical StrategyConfig class; this tool validates that class-native contract directly, because lint_strategy rejects it. Only a runtime_tag=nautilus strategy with a pinned Nautilus class can deploy, and the runtime is fixed at creation - update_strategy cannot change it. This does not backtest, deploy, or touch live money.",
+        "Create a NEW trading strategy directly. name, source_text, runtime_tag, and entry_function are all required. Choose the artifact contract BEFORE writing source: runtime_tag=vbt requires entry_function='run' and the six-key research return contract; lint_strategy validates that shape. runtime_tag='nautilus' requires entry_function to name the native Strategy subclass and its StrategyConfig to declare instrument_id, pfm_initial_cash, and pfm_risk_fraction; read both risk fields when sizing. This tool validates that class-native contract directly, because lint_strategy rejects it. Only a runtime_tag='nautilus' strategy with a pinned Nautilus class can deploy, and the runtime is fixed at creation - update_strategy cannot change it. This does not backtest, deploy, or touch live money.",
       parameters: Type.Object(
         {
           name: Type.String({

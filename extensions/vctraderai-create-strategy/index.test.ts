@@ -151,6 +151,14 @@ describe("vctraderai-create-strategy", () => {
     expect(description).toMatch(/StrategyConfig/);
   });
 
+  it("names the Nautilus runtime and all engine-injected config fields", () => {
+    const description = capturedTool().description ?? "";
+    expect(description).toContain("runtime_tag='nautilus'");
+    expect(description).toContain("instrument_id");
+    expect(description).toContain("pfm_initial_cash");
+    expect(description).toContain("pfm_risk_fraction");
+  });
+
   it("names the refusal on the name parameter itself", () => {
     const name = capturedTool().parameters?.properties?.name?.description ?? "";
     expect(name).toMatch(/Required/);

@@ -176,6 +176,44 @@ function buildOmittedExtensionConfigSchema(kind: "plugin" | "channel", id: strin
   };
 }
 
+/**
+ * True when a config schema declares NO configurable surface at all.
+ *
+ * A tool-only plugin's manifest still has to carry `configSchema` -- the
+ * manifest contract requires it unconditionally (src/plugins/manifest.ts) -- so
+ * dozens of them ship `{type: "object", additionalProperties: false,
+ * properties: {}}`, a schema whose entire content is "there is nothing to
+ * configure". Spending one of EXTENSION_SCHEMA_MAX_ITEMS on that is a slot
+ * bought for no information, and the budget is a hard count: once it is
+ * exhausted every LATER extension has its real schema replaced by an "omitted"
+ * placeholder in the Gateway's config.schema response. The victim is whichever
+ * extension sorts last, so the symptom appears as a missing config path for a
+ * plugin nobody touched.
+ *
+ * Deliberately strict. `additionalProperties` must be EXPLICITLY false: absent
+ * (or true) means the object admits arbitrary keys, which is a real -- if
+ * unenumerated -- configurable surface, and skipping the budget for it would
+ * silently drop it from the response.
+ */
+function declaresNoConfigurableProperties(schema: JsonSchemaNode): boolean {
+  const node = schema as {
+    type?: unknown;
+    properties?: Record<string, unknown>;
+    patternProperties?: Record<string, unknown>;
+    additionalProperties?: unknown;
+  };
+  if (node.type !== "object") {
+    return false;
+  }
+  if (node.properties && Object.keys(node.properties).length > 0) {
+    return false;
+  }
+  if (node.patternProperties && Object.keys(node.patternProperties).length > 0) {
+    return false;
+  }
+  return node.additionalProperties === false;
+}
+
 function limitExtensionSchemas(params: {
   plugins: PluginUiMetadata[];
   channels: ChannelUiMetadata[];
@@ -199,7 +237,11 @@ function limitExtensionSchemas(params: {
   };
 
   const plugins = params.plugins.map((plugin) => {
-    if (!plugin.configSchema || keepSchema(plugin.configSchema)) {
+    if (
+      !plugin.configSchema ||
+      declaresNoConfigurableProperties(plugin.configSchema) ||
+      keepSchema(plugin.configSchema)
+    ) {
       return plugin;
     }
     return {

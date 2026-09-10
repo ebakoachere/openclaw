@@ -78,34 +78,54 @@ describe("vctraderai-agent-close-position", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // The LOCKED arm does not stage anything, and the description must say so.
+  // W19 LIVE-CLOSE (platform PR #1864): the description is the belief.
   //
-  // Measured in propfirm_manager, not recalled: ALLOWLIST has this tool as
-  // kind=ToolKind.EXECUTE with staged_action=None, and POST /api/v1/openclaw/stage
-  // refuses anything that is not PROPOSE_ONLY with a non-None staged_action
-  // (403 openclaw_tool_not_propose_only, web_api/openclaw_internal/router.py:994).
-  // The LOCKED arm returns AgentExecuteOutcome(downgraded_to_staged=True,
-  // status=STATUS_DOWNGRADED) and writes NO row. The platform's own route comment
-  // says it plainly: "on LOCKED it DOWNGRADES (notify-only -- place has no
-  // Appliable staged-card)".
+  // This tool's description has now been wrong in TWO opposite directions, which
+  // is why it is pinned rather than trusted.
   //
-  // The field is called downgraded_to_staged, which is where the belief came from.
-  // Until 2026-08-22 the description told the model the action "downgrades to a
-  // staged card the owner approves", so on a locked window -- during a halt, which
-  // is exactly when de-risking matters -- the model would tell the owner the action
-  // was staged and awaiting approval, and stand down. No card existed. Nothing was
-  // pending. The action simply did not happen.
-  it("never tells the model a locked window produces a card to approve", () => {
+  // Until 2026-08-22 it told the model a locked window "downgrades to a staged
+  // card the owner approves". No card existed, so during a halt -- exactly when
+  // de-risking matters -- the model would tell the owner the close was pending
+  // and stand down. That was corrected to "NOTHING is staged for approval",
+  // which was true.
+  //
+  // But the same correction also told the model, in capitals, that a close does
+  // not go through unless the account is set to act autonomously, and to "never
+  // say the action is staged, pending approval or awaiting a card". On
+  // 2026-09-09 the founder could not close a filled XAUUSD position for exactly
+  // that reason: an ENTRY lock was being applied to an EXIT. The founder's
+  // ruling and PR #1864 changed the platform -- a close is de-risking and
+  // executes in Manual mode -- so this description had to change with it, or the
+  // model would refuse on the platform's behalf.
+  //
+  // What is pinned below is the CURRENT truth and the shape of both past errors.
+  it("tells the model a close executes in manual mode, and is broker-confirmed", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-close-position" });
     plugin.register(captured.api);
     const { description = "" } = captured.tools[0] as { description?: string };
     // Non-vacuity: assert we are looking at a real description before asserting
     // what it does not contain. `not.toMatch` on an empty string passes.
     expect(description.length).toBeGreaterThan(80);
+
+    // The 2026-09-09 error: do not teach that the mode blocks an exit.
+    expect(description).toMatch(/DE-RISKING/);
+    expect(description).toMatch(/does NOT require the account to be set to act autonomously/);
+    expect(description).not.toMatch(/NOTHING is staged for approval/);
+
+    // The 2026-08-22 error: still never promise a card on this surface.
     expect(description).not.toMatch(/staged card/i);
-    expect(description).not.toMatch(/downgrade to a staged/i);
-    // And it must say what IS true, so the model has something to tell the owner.
-    expect(description).toMatch(/NOTHING is staged for approval/);
+    expect(description).not.toMatch(/awaiting approval/i);
+
+    // What must be true instead.
+    expect(description).toMatch(/reduce-only/i);
+    expect(description).toMatch(/ONLY AFTER THE BROKER CONFIRMS IT/);
     expect(description).toMatch(/lock_reason/);
+    expect(description).toMatch(/'refused'/);
+    // The four ways the position cannot be confirmed open, so "flat" is never
+    // the model's default reading of a refusal.
+    expect(description).toMatch(/position_not_open/);
+    expect(description).toMatch(/position_book_unreadable/);
+    expect(description).toMatch(/position_book_not_visible/);
+    expect(description).toMatch(/position_book_stale/);
   });
 });

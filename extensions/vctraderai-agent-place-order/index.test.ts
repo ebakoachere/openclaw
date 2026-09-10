@@ -178,6 +178,8 @@ describe("vctraderai-agent-place-order", () => {
     expect(required).toContain("account_id");
     expect(required).toContain("intended_price");
     expect(required).not.toContain("qty");
+    // stop_loss is optional BY DESIGN on this lineage: a stopless notional order is legal.
+    expect(required).not.toContain("stop_loss");
     expect(schema?.properties?.qty).toBeDefined();
   });
 

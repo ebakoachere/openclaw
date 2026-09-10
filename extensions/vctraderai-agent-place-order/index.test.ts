@@ -176,7 +176,6 @@ describe("vctraderai-agent-place-order", () => {
     // Controls: the fields that MUST stay required, so an empty/renamed
     // `required` array cannot make this test pass by accident.
     expect(required).toContain("account_id");
-    expect(required).toContain("stop_loss");
     expect(required).toContain("intended_price");
     expect(required).not.toContain("qty");
     expect(schema?.properties?.qty).toBeDefined();

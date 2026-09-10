@@ -104,29 +104,30 @@ describe("vctraderai-lint-strategy", () => {
   });
 
   // ---------------------------------------------------------------------
-  // WHAT WAS FALSE, AND WHY A GREEN SUITE HID IT.
+  // WHAT WAS FALSE BEFORE, AND WHAT IS FALSE NOW.
   //
-  // The description used to end with the unconditional directive: "Use it to
-  // VALIDATE and REPAIR source BEFORE calling create_strategy." That is true only
-  // for a vbt/Shape-A source. The BFF route picks its contract with
-  // `is_class_native_artifact(runtime_tag, entry_function)`, which requires
-  // runtime_tag == "nautilus" AND entry_function != "run" -- and this plugin
-  // never sends runtime_tag, so the predicate is always false and the six-key
-  // path always runs. Measured against web_api/strategy_authoring/service with
-  // the repo's own NativeStrategy fixture and exactly the body this plugin POSTs:
-  //   lint_source(NAUTILUS_CLASS_SOURCE, entry_function="NativeStrategy")
-  //     -> passed=false, 3x AST_GUARD_REJECTION denied_import
-  //        (nautilus_trader.config / .model.identifiers / .trading.strategy),
-  //        each with fix_hint "Remove denied imports/attributes..."
-  //   validate_nautilus_class_source_contract(same source) -> []
-  //   vbt control on the same route -> passed=true (so the probe discriminates)
-  // Since create_strategy advertises the nautilus lane as the only deployable
-  // one, the old directive told the model to delete the nautilus_trader imports
-  // from a correct, deployable artifact.
+  // ROUND ONE (v1.42.8). The description ended with the unconditional directive
+  // "Use it to VALIDATE and REPAIR source BEFORE calling create_strategy",
+  // which was true only for a vbt/Shape-A source: the BFF route picks its
+  // contract with `is_class_native_artifact(runtime_tag, entry_function)` and
+  // this plugin never sent runtime_tag, so the six-key path always ran and a
+  // correct Nautilus class came back with 3x AST_GUARD_REJECTION telling the
+  // model to delete its nautilus_trader imports. The fix then was a WARNING in
+  // the description: "do not lint a Nautilus class here".
   //
-  // The existing tests all lint a run(...) stub through a FAKE fetch, so the
-  // class-native shape was never sent and the false negative never appeared.
-  // Green suite, lying tool.
+  // ROUND TWO (this change). The warning is now the lie. WS-2/WS-4 landed
+  // `runtime_tag`, `manifest` and `default_params` on `LintStrategyRequest`
+  // (web_api/strategy_authoring/schemas.py, extra="forbid"), and the authoring
+  // guide tells the agent to call lint_strategy WITH them -- a promise this
+  // plugin could not keep, because it still sent `{source, entry_function}`
+  // only. A tool that refuses the very artifact the guide tells the agent to
+  // lint is worse than no tool: the agent follows the fix_hints and destroys a
+  // deployable class. So the body forwards all three when present, and the
+  // description says to lint Nautilus classes HERE and to trust the hints.
+  //
+  // The tests below therefore pin the NEW contract. The old ones pinned the
+  // absence of runtime_tag and the presence of the warning; both were correct
+  // for v1.42.8 and are wrong for this lineage.
   // ---------------------------------------------------------------------
   const capturedTool = () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-lint-strategy" });
@@ -145,11 +146,70 @@ describe("vctraderai-lint-strategy", () => {
     expect(description).toMatch(/create_strategy/); // control: the name is still there
   });
 
-  it("warns that a valid Nautilus class is falsely rejected here", () => {
+  it("tells the agent to lint a Nautilus class HERE, and to trust the hints", () => {
     const description = capturedTool().description ?? "";
-    expect(description).toMatch(/AST_GUARD_REJECTION/);
-    expect(description).toMatch(/do not follow those hints/i);
+    // Non-vacuity first: there is a real description to assert against.
+    expect(description.length).toBeGreaterThan(80);
+    // The v1.42.8 warning is now false and must be gone -- it would send the
+    // agent away from the only tool that can pre-validate its artifact.
+    expect(description).not.toMatch(/do not lint a Nautilus class here/i);
+    expect(description).not.toMatch(/do not follow those hints/i);
+    expect(description).not.toMatch(/AST_GUARD_REJECTION/);
+    // And it must say what the tool now does.
+    expect(description).toMatch(/nautilus/i);
     expect(description).toMatch(/update_strategy/);
+  });
+
+  it("forwards runtime_tag, manifest and default_params when the agent sends them", async () => {
+    let capturedBody: Record<string, unknown> | undefined;
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof globalThis.fetch;
+    await runLintStrategy(
+      {
+        source: "class NativeStrategy(Strategy): pass",
+        entry_function: "NativeStrategy",
+        runtime_tag: "nautilus",
+        manifest: { name: "ict", default_params: { lookback: 3 } },
+        default_params: { lookback: 3 },
+      },
+      { fetchImpl },
+    );
+    // `is_class_native_artifact` needs runtime_tag == "nautilus" AND an
+    // entry_function that is not "run"; both now reach the route.
+    expect(capturedBody).toEqual({
+      source: "class NativeStrategy(Strategy): pass",
+      entry_function: "NativeStrategy",
+      runtime_tag: "nautilus",
+      manifest: { name: "ict", default_params: { lookback: 3 } },
+      default_params: { lookback: 3 },
+    });
+  });
+
+  it("omits the three new keys entirely when the agent omits them", async () => {
+    // `LintStrategyRequest` is extra="forbid" and every new field is optional,
+    // so an omitted field must be ABSENT, never null: a null runtime_tag would
+    // be a 422 on a call that used to work, which is the silent-degradation
+    // shape this repo refuses.
+    let capturedBody: Record<string, unknown> | undefined;
+    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      capturedBody = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as typeof globalThis.fetch;
+    await runLintStrategy({ source: "def run(): pass", entry_function: "run" }, { fetchImpl });
+    expect(Object.keys(capturedBody ?? {}).toSorted()).toEqual(["entry_function", "source"]);
+  });
+
+  it("declares the three new parameters on the tool schema", () => {
+    const properties = capturedTool().parameters?.properties ?? {};
+    expect(Object.keys(properties).toSorted()).toEqual([
+      "default_params",
+      "entry_function",
+      "manifest",
+      "runtime_tag",
+      "source",
+    ]);
   });
 
   it("names the Nautilus runtime and all engine-injected config fields", () => {
@@ -158,24 +218,5 @@ describe("vctraderai-lint-strategy", () => {
     expect(description).toContain("instrument_id");
     expect(description).toContain("pfm_initial_cash");
     expect(description).toContain("pfm_risk_fraction");
-  });
-
-  it("never sends runtime_tag, which is why only the six-key contract can run", () => {
-    // The mechanism behind the scope warning, pinned as behaviour rather than
-    // prose: the body carries source (+ entry_function) and nothing else, so
-    // is_class_native_artifact is always false server-side.
-    let capturedBody: Record<string, unknown> | undefined;
-    const fetchImpl = (async (_input: RequestInfo | URL, init?: RequestInit) => {
-      capturedBody = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
-      return new Response(JSON.stringify({}), { status: 200 });
-    }) as typeof globalThis.fetch;
-    return runLintStrategy(
-      { source: "class NativeStrategy(Strategy):\n    pass\n", entry_function: "NativeStrategy" },
-      { fetchImpl },
-    ).then(() => {
-      expect(capturedBody).toBeDefined();
-      expect(Object.keys(capturedBody ?? {}).toSorted()).toEqual(["entry_function", "source"]);
-      expect(capturedBody).not.toHaveProperty("runtime_tag");
-    });
   });
 });

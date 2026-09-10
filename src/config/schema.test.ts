@@ -311,6 +311,100 @@ describe("config schema", () => {
     expect(last?.schema?.description).toContain("omitted");
   });
 
+  // W19 LIVE-CLOSE: a schema with nothing in it must not spend a budget slot.
+  //
+  // The manifest contract requires `configSchema` unconditionally, so every
+  // tool-only plugin ships an empty object schema. With EXTENSION_SCHEMA_MAX_ITEMS
+  // a hard count, those empty schemas were evicting REAL schemas belonging to
+  // plugins that sort later -- in the Gateway's config.schema response, not just
+  // in docs. It surfaced as a doc-baseline assertion about an unrelated plugin.
+  //
+  // BOTH DIRECTIONS are asserted on purpose: a helper that always returned true
+  // would satisfy the first of these on its own, and would then let a real
+  // schema skip the budget it exists to enforce.
+  it("does not spend an extension budget slot on a schema with no properties", () => {
+    const emptySchema = {
+      type: "object" as const,
+      additionalProperties: false,
+      properties: {},
+    };
+    const res = buildConfigSchema({
+      cache: false,
+      plugins: [
+        // Enough empty schemas to blow a 256-item budget several times over.
+        ...Array.from({ length: 600 }, (_, index) => ({
+          id: `tool-only-${String(index).padStart(4, "0")}`,
+          configSchema: emptySchema,
+        })),
+        // Sorted last, so it is the first casualty if the empties consume slots.
+        {
+          id: "zzz-real-config",
+          configSchema: {
+            type: "object" as const,
+            properties: { token: { type: "string" as const } },
+          },
+        },
+      ],
+    });
+
+    const real = lookupConfigSchema(res, "plugins.entries.zzz-real-config.config.token");
+    expect(real?.schema?.type).toBe("string");
+    const container = lookupConfigSchema(res, "plugins.entries.zzz-real-config.config");
+    expect(container?.schema?.description ?? "").not.toContain("omitted");
+  });
+
+  it("still spends a slot on a schema that has even one property", () => {
+    const res = buildConfigSchema({
+      cache: false,
+      plugins: [
+        ...Array.from({ length: 600 }, (_, index) => ({
+          id: `has-config-${String(index).padStart(4, "0")}`,
+          configSchema: {
+            type: "object" as const,
+            additionalProperties: false,
+            properties: { value: { type: "string" as const } },
+          },
+        })),
+        {
+          id: "zzz-real-config",
+          configSchema: {
+            type: "object" as const,
+            properties: { token: { type: "string" as const } },
+          },
+        },
+      ],
+    });
+
+    const container = lookupConfigSchema(res, "plugins.entries.zzz-real-config.config");
+    expect(container?.schema?.additionalProperties).toBe(true);
+    expect(container?.schema?.description).toContain("omitted");
+  });
+
+  it("does not exempt an object schema that admits arbitrary keys", () => {
+    // `additionalProperties` absent means the object accepts anything, which is
+    // a real configurable surface even though nothing is enumerated. Exempting
+    // it would drop it from the response silently.
+    const res = buildConfigSchema({
+      cache: false,
+      plugins: [
+        ...Array.from({ length: 600 }, (_, index) => ({
+          id: `open-object-${String(index).padStart(4, "0")}`,
+          configSchema: { type: "object" as const, properties: {} },
+        })),
+        {
+          id: "zzz-real-config",
+          configSchema: {
+            type: "object" as const,
+            properties: { token: { type: "string" as const } },
+          },
+        },
+      ],
+    });
+
+    const container = lookupConfigSchema(res, "plugins.entries.zzz-real-config.config");
+    expect(container?.schema?.description).toContain("omitted");
+  });
+
   it("looks up plugin config paths for slash-delimited plugin ids", () => {
     const res = buildConfigSchema({
       plugins: [

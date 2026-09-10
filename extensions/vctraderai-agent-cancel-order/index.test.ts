@@ -95,17 +95,31 @@ describe("vctraderai-agent-cancel-order", () => {
   // is exactly when de-risking matters -- the model would tell the owner the action
   // was staged and awaiting approval, and stand down. No card existed. Nothing was
   // pending. The action simply did not happen.
-  it("never tells the model a locked window produces a card to approve", () => {
+  //
+  // W19 LIVE-CLOSE (platform PR #1864) added the other half: cancelling a
+  // WORKING ORDER is de-risking, so the execution mode no longer refuses it at
+  // all. The description used to tell the model the call "does NOT go through"
+  // unless the account was set to act autonomously, which after #1864 would
+  // have the model refuse on the platform's behalf -- the same shape of error
+  // that stopped the founder closing a filled position on 2026-09-09.
+  it("tells the model a cancel runs in manual mode, and still promises no card", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-cancel-order" });
     plugin.register(captured.api);
     const { description = "" } = captured.tools[0] as { description?: string };
     // Non-vacuity: assert we are looking at a real description before asserting
     // what it does not contain. `not.toMatch` on an empty string passes.
     expect(description.length).toBeGreaterThan(80);
+    // The 2026-08-22 error: never promise a card on an exit surface.
     expect(description).not.toMatch(/staged card/i);
     expect(description).not.toMatch(/downgrade to a staged/i);
-    // And it must say what IS true, so the model has something to tell the owner.
-    expect(description).toMatch(/NOTHING is staged for approval/);
+    // The 2026-09-09 error: never teach that the mode blocks an exit.
+    expect(description).not.toMatch(/NOTHING is staged for approval/);
+    expect(description).toMatch(/DE-RISKING/);
+    expect(description).toMatch(/does NOT require the account to be set to act autonomously/);
+    // What IS true, so the model has something to tell the owner.
+    expect(description).toMatch(/'refused'/);
     expect(description).toMatch(/lock_reason/);
+    // A cancel that did not happen leaves live exposure -- this must survive.
+    expect(description).toMatch(/leaves the order LIVE/);
   });
 });

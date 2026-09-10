@@ -276,34 +276,52 @@ describe("vctraderai-agent-place-order", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // The LOCKED arm does not stage anything, and the description must say so.
+  // W19 LIVE-CLOSE (platform PR #1864): a locked PLACE really does produce a
+  // card now, and the description has to stop denying it.
   //
-  // Measured in propfirm_manager, not recalled: ALLOWLIST has this tool as
-  // kind=ToolKind.EXECUTE with staged_action=None, and POST /api/v1/openclaw/stage
-  // refuses anything that is not PROPOSE_ONLY with a non-None staged_action
-  // (403 openclaw_tool_not_propose_only, web_api/openclaw_internal/router.py:994).
-  // The LOCKED arm returns AgentExecuteOutcome(downgraded_to_staged=True,
-  // status=STATUS_DOWNGRADED) and writes NO row. The platform's own route comment
-  // says it plainly: "on LOCKED it DOWNGRADES (notify-only -- place has no
-  // Appliable staged-card)".
+  // The history matters, because this description has been wrong in both
+  // directions. Until 2026-08-22 it told the model a locked window "downgrades
+  // to a staged card the owner approves" -- and no card existed, so the model
+  // told owners an order was pending when nothing was. That was corrected to
+  // "There is no card, no queue entry and no pending approval anywhere ... Never
+  // say the action is staged, pending approval or awaiting a card", which was
+  // true when written.
   //
-  // The field is called downgraded_to_staged, which is where the belief came from.
-  // Until 2026-08-22 the description told the model the action "downgrades to a
-  // staged card the owner approves", so on a locked window -- during a halt, which
-  // is exactly when de-risking matters -- the model would tell the owner the action
-  // was staged and awaiting approval, and stand down. No card existed. Nothing was
-  // pending. The action simply did not happen.
-  it("never tells the model a locked window produces a card to approve", () => {
+  // Then Task 18 added the staging arm: a stage-eligible lock (mode_manual /
+  // consent_disabled) mints a REAL openclaw.staged_actions row and returns
+  // execution_status 'staged_for_approval' with its id. The description was not
+  // updated, so the model was left under standing instructions to deny a card
+  // that now existed. On 2026-09-09 the founder's XAUUSD order was sitting on
+  // his approval card and was relayed to him as a flat refusal; he approved it
+  // by hand and it filled.
+  //
+  // Both errors have the same shape -- the description outliving the platform --
+  // so what is pinned is the current truth AND the wording of each past error.
+  it("tells the model a locked place is a CARD, and what a real refusal looks like", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-place-order" });
     plugin.register(captured.api);
     const { description = "" } = captured.tools[0] as { description?: string };
     // Non-vacuity: assert we are looking at a real description before asserting
     // what it does not contain. `not.toMatch` on an empty string passes.
     expect(description.length).toBeGreaterThan(80);
-    expect(description).not.toMatch(/staged card/i);
-    expect(description).not.toMatch(/downgrade to a staged/i);
-    // And it must say what IS true, so the model has something to tell the owner.
-    expect(description).toMatch(/NOTHING is staged for approval/);
+
+    // The 2026-09-09 error, in its own words: never restore these.
+    expect(description).not.toMatch(/NOTHING is staged for approval/);
+    expect(description).not.toMatch(/no pending approval anywhere/i);
+    expect(description).not.toMatch(/Never say the action is staged/i);
+
+    // The truth the model needs in order to tell the owner something useful.
+    expect(description).toMatch(/STAGED AS AN APPROVAL CARD, NOT REFUSED/);
+    expect(description).toMatch(/staged_for_approval/);
+    expect(description).toMatch(/staged_action_id/);
+    expect(description).toMatch(/get_staged_action/);
+    // The 2026-08-22 error was real too: a card must never be read as a fill.
+    expect(description).toMatch(/applied means the owner approved it/);
+    expect(description).toMatch(/NOT yet a fill/);
+    expect(description).toMatch(/get_order_outcome/);
+    // A genuine refusal is still a distinct answer, and still says so.
+    expect(description).toMatch(/'refused'/);
     expect(description).toMatch(/lock_reason/);
+    expect(description).toMatch(/Do NOT re-place/);
   });
 });

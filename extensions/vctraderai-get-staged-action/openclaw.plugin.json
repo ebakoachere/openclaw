@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-get-staged-action",
+  "name": "VC Trader AI Get Staged Action",
+  "description": "Read-only workspace-scoped tool: the state of an approval card the agent staged (proposed / applied / rejected / expired) via the live read endpoints. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN). READ_ONLY per ADR 0078.",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "get_staged_action"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

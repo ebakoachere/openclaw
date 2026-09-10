@@ -9,10 +9,5 @@
     "tools": [
       "get_staged_action"
     ]
-  },
-  "configSchema": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {}
   }
 }

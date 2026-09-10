@@ -124,7 +124,7 @@ describe("vctraderai-get-staged-action", () => {
     // that reads `applied` and stops has simply relocated the original lie.
     const captured = createCapturedPluginRegistration({ id: "vctraderai-get-staged-action" });
     plugin.register(captured.api);
-    const description = String(captured.tools[0]?.description ?? "");
+    const { description = "" } = captured.tools[0] as { description?: string };
     expect(description).toContain("APPLIED DOES NOT MEAN FILLED");
     expect(description).toContain("get_order_outcome");
     expect(description).toContain("found false");

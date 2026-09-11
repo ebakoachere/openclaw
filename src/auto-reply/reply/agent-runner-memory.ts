@@ -1159,8 +1159,13 @@ export async function runMemoryFlushIfNeeded(params: {
     return entry ?? params.sessionEntry;
   }
 
+  // `runKind` is on the line AND on the run context below. On the line because
+  // a reader scanning verbose output otherwise cannot tell this run's events
+  // from a real turn's; on the context because every event emitted downstream
+  // inherits it, and a flush that looks like a turn is how a flush's output
+  // gets read as an answer to the user.
   logVerbose(
-    `memoryFlush triggered: sessionKey=${params.sessionKey} tokenCount=${tokenCountForFlush ?? "undefined"} threshold=${flushThreshold}`,
+    `memoryFlush triggered: runKind=memory_flush sessionKey=${params.sessionKey} tokenCount=${tokenCountForFlush ?? "undefined"} threshold=${flushThreshold}`,
   );
 
   params.replyOperation.setPhase("memory_flushing");
@@ -1175,6 +1180,7 @@ export async function runMemoryFlushIfNeeded(params: {
     memoryDeps.registerAgentRunContext(flushRunId, {
       sessionKey: params.sessionKey,
       verboseLevel: params.resolvedVerboseLevel,
+      runKind: "memory_flush",
     });
   }
   let memoryCompactionCompleted = false;

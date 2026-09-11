@@ -54,6 +54,32 @@ export type BffError = {
    * it retries the same wrong shape and finally reports the outage to the user.
    */
   retrySuggestion?: string;
+  /**
+   * The server's FULL problem list, one entry per failing rule.
+   *
+   * The BFF accumulates every contract violation and sends them as
+   * `problems[]`, and its own `retry_suggestion` tells the model to read
+   * `problems[].fix_hint`. This client relayed `code`, `message` and
+   * `retry_suggestion` and dropped `problems` on the floor, so the model was
+   * told to read a list it was never given: it learned ONE RULE PER ATTEMPT
+   * and burned a round trip discovering the rule the previous response already
+   * knew. A body that makes a promise the relay does not keep is worse than a
+   * body that says nothing.
+   */
+  problems?: BffProblem[];
+  /**
+   * The machine-readable codes for the same failures, when the server sent
+   * them. Kept distinct from `problems` because a caller may want to branch on
+   * a code without parsing prose.
+   */
+  errorCodes?: string[];
+};
+
+/** One entry of the server's `problems[]` list: `{code, message, fix_hint}`. */
+export type BffProblem = {
+  code: string;
+  message: string;
+  fixHint?: string;
 };
 
 /** Long bodies are truncated: this text ends up in a model prompt. */
@@ -65,6 +91,38 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+/** Read `problems[]` off the envelope, skipping entries with no message. */
+function readProblems(value: unknown): BffProblem[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const problems: BffProblem[] = [];
+  for (const entry of value) {
+    const record = asRecord(entry);
+    const message = typeof record?.message === "string" ? record.message : "";
+    if (!message) {
+      continue;
+    }
+    const code =
+      record && typeof record.code === "string" && record.code.length > 0 ? record.code : "problem";
+    const hint =
+      record && typeof record.fix_hint === "string" && record.fix_hint.length > 0
+        ? record.fix_hint
+        : undefined;
+    problems.push({ code, message, fixHint: hint });
+  }
+  return problems.length > 0 ? problems : undefined;
+}
+
+/** Read `error_codes[]`, keeping only non-empty strings. */
+function readErrorCodes(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const codes = value.filter((code): code is string => typeof code === "string" && code.length > 0);
+  return codes.length > 0 ? codes : undefined;
 }
 
 /**
@@ -125,6 +183,9 @@ async function readBffErrorDetail(response: FetchResponse): Promise<BffError> {
       typeof suggestion === "string" && suggestion.length > 0
         ? suggestion.slice(0, MAX_ERROR_BODY_CHARS)
         : undefined,
+    // Same envelope record as `code` / `message` / `retry_suggestion`.
+    problems: readProblems(envelope.problems),
+    errorCodes: readErrorCodes(envelope.error_codes),
   };
 }
 
@@ -137,15 +198,56 @@ export class BffEgressViolation extends Error {
   }
 }
 
+/**
+ * Render the problem list for the thrown message, BOUNDED, and say what was
+ * dropped.
+ *
+ * The budget is the existing `MAX_ERROR_BODY_CHARS`, applied to this block
+ * (the summary keeps rendering exactly as it does today, so a body with no
+ * problems is byte-identical to before). A list too long for the budget ends
+ * with `(+N more)` rather than stopping mid-sentence: silent truncation is how
+ * a model comes to believe it has seen every rule when it has seen four of
+ * seven, which is the same "one rule per attempt" failure one level up.
+ */
+function renderProblems(problems: BffProblem[], budget: number): string {
+  const lines: string[] = [];
+  let used = 0;
+  let shown = 0;
+  for (const problem of problems) {
+    const line = `- ${problem.code}: ${problem.message}${
+      problem.fixHint ? ` — ${problem.fixHint}` : ""
+    }`;
+    // Reserve room for the tail BEFORE committing the line, or the count that
+    // explains the truncation would itself be truncated.
+    const tail = `\n(+${problems.length - shown} more)`;
+    if (used + line.length + 1 + tail.length > budget) {
+      break;
+    }
+    lines.push(line);
+    used += line.length + 1;
+    shown += 1;
+  }
+  const omitted = problems.length - shown;
+  if (omitted > 0) {
+    lines.push(`(+${omitted} more)`);
+  }
+  return lines.join("\n");
+}
+
 export class BffRequestError extends Error {
   readonly detail: BffError;
   constructor(detail: BffError) {
     // The retry suggestion belongs in the MESSAGE, not just the detail object:
     // the message is what the tool runner shows the model.
     const summary = `vctraderai bff request failed: ${detail.code} (${detail.status}) ${detail.message}`;
-    super(
-      detail.retrySuggestion ? `${summary} — retry_suggestion: ${detail.retrySuggestion}` : summary,
-    );
+    const head = detail.retrySuggestion
+      ? `${summary} — retry_suggestion: ${detail.retrySuggestion}`
+      : summary;
+    // The suggestion says "read problems[].fix_hint". This makes it true.
+    const rendered = detail.problems?.length
+      ? renderProblems(detail.problems, MAX_ERROR_BODY_CHARS)
+      : "";
+    super(rendered ? `${head}\nproblems:\n${rendered}` : head);
     this.name = "BffRequestError";
     this.detail = detail;
   }

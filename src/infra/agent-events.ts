@@ -108,10 +108,19 @@ export type AgentEventPayload = {
   sessionKey?: string;
 };
 
+/**
+ * What KIND of run this is. A memory flush registers its own agent run, and
+ * without this every event it emits is indistinguishable from a real turn's --
+ * so a flush's output reads as if the user had just been answered.
+ */
+export type AgentRunKind = "turn" | "memory_flush";
+
 export type AgentRunContext = {
   sessionKey?: string;
   verboseLevel?: VerboseLevel;
   isHeartbeat?: boolean;
+  /** Absent means an ordinary turn; set explicitly by runs that are not one. */
+  runKind?: AgentRunKind;
   /** Whether control UI clients should receive chat/agent updates for this run. */
   isControlUiVisible?: boolean;
   /** Timestamp when this context was first registered (for TTL-based cleanup). */

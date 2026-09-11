@@ -159,6 +159,138 @@ describe("vctraderai-create-strategy", () => {
     expect(description).toContain("pfm_risk_fraction");
   });
 
+  // ---------------------------------------------------------------------
+  // The relay used to drop `problems[]`.
+  //
+  // The BFF accumulates EVERY contract violation and sends them as
+  // `problems[]` (web_api/openclaw_internal/router.py:2870-2884, the same
+  // shape the stage 422s use), and its own `retry_suggestion` tells the model
+  // to read `problems[].fix_hint`. This client read `code`, `message` and
+  // `retry_suggestion` and never read `problems` at all, so the model was
+  // instructed to consult a list it had not been given. It therefore learned
+  // ONE RULE PER ATTEMPT: the second attempt failed on a rule the first
+  // response already carried. Measured on 2026-09-08 and still live on the
+  // deployed tag.
+  // ---------------------------------------------------------------------
+
+  const problemBody = (problems: unknown[], extra: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      detail: {
+        error: {
+          code: "openclaw_registry_mutation_failed",
+          message: "Strategy source failed the runtime contract.",
+          retry_suggestion: "Fix every problem in problems[].fix_hint, then retry once.",
+          ...extra,
+          problems,
+        },
+      },
+    });
+
+  const failingCall = (body: string, status = 422) => {
+    const fetchImpl = (async () =>
+      new Response(body, {
+        status,
+        headers: { "content-type": "application/json" },
+      })) as typeof globalThis.fetch;
+    return runCreateStrategy(
+      {
+        name: "X",
+        intent_brief: "x",
+        runtime_tag: "vbt",
+        entry_function: "run",
+        source_text: "def run(data, params=None, context=None):\n    return {}",
+      },
+      { fetchImpl },
+    );
+  };
+
+  it("relays every problem, with its code and its fix_hint", async () => {
+    const body = problemBody(
+      [
+        {
+          code: "MANIFEST_INVALID",
+          message: "Strategy manifest failed validation: missing entry_function",
+          fix_hint: "Pass the same valid StrategySpec manifest planned for create_strategy.",
+        },
+        {
+          code: "SIGNATURE_MISMATCH",
+          message: "run() must accept (data, params, context)",
+          fix_hint: "Declare def run(data, params=None, context=None).",
+        },
+      ],
+      { error_codes: ["MANIFEST_INVALID", "SIGNATURE_MISMATCH"] },
+    );
+
+    const error = await failingCall(body).catch((caught: unknown) => caught);
+
+    const message = (error as Error).message;
+    // BOTH problems, not just the first: that is the whole defect.
+    expect(message).toContain("MANIFEST_INVALID: Strategy manifest failed validation");
+    expect(message).toContain("SIGNATURE_MISMATCH: run() must accept");
+    // and each carries the fix_hint the retry_suggestion promises
+    expect(message).toContain("Declare def run(data, params=None, context=None).");
+    expect(message).toContain("Pass the same valid StrategySpec manifest");
+    // the suggestion itself still renders
+    expect(message).toContain("retry_suggestion:");
+    // and the structured detail carries them for a caller that wants to branch
+    expect(
+      (error as { detail?: { problems?: unknown[]; errorCodes?: string[] } }).detail,
+    ).toMatchObject({
+      errorCodes: ["MANIFEST_INVALID", "SIGNATURE_MISMATCH"],
+    });
+    expect((error as { detail: { problems: unknown[] } }).detail.problems).toHaveLength(2);
+  });
+
+  it("renders exactly as before when the body carries no problems", async () => {
+    const body = JSON.stringify({
+      detail: {
+        error: {
+          code: "openclaw_registry_mutation_failed",
+          message: "create_strategy is missing required fields",
+          retry_suggestion: "Send name and source_text.",
+        },
+      },
+    });
+
+    const error = await failingCall(body).catch((caught: unknown) => caught);
+
+    const message = (error as Error).message;
+    // Byte-identical to the pre-change shape: summary + retry_suggestion, and
+    // NO empty "problems:" header. A header with nothing under it would teach
+    // the model that the list exists and is empty, which is a different claim.
+    expect(message).toBe(
+      "vctraderai bff request failed: openclaw_registry_mutation_failed (422) " +
+        "create_strategy is missing required fields — retry_suggestion: Send name and source_text.",
+    );
+    expect(message).not.toContain("problems:");
+    expect((error as { detail?: { problems?: unknown } }).detail?.problems).toBeUndefined();
+  });
+
+  it("bounds a long list and says how many it dropped", async () => {
+    // Each problem is deliberately fat, so the 2000-char budget cannot hold
+    // all of them. Silent truncation is the failure mode being avoided: a
+    // model that sees four of seven rules and no notice believes it has seen
+    // them all -- the same one-rule-per-attempt loop, one level up.
+    const many = Array.from({ length: 40 }, (_unused, index) => ({
+      code: `RULE_${index}`,
+      message: `problem ${index} `.padEnd(120, "x"),
+      fix_hint: `hint ${index} `.padEnd(120, "y"),
+    }));
+
+    const error = await failingCall(problemBody(many)).catch((caught: unknown) => caught);
+
+    const message = (error as Error).message;
+    expect(message).toContain("RULE_0:");
+    expect(message).toMatch(/\(\+\d+ more\)/);
+    // the count is honest: rendered + omitted === the whole list
+    const omitted = Number(/\(\+(\d+) more\)/.exec(message)?.[1]);
+    const rendered = (message.match(/^- RULE_\d+:/gm) ?? []).length;
+    expect(rendered + omitted).toBe(40);
+    expect(rendered).toBeGreaterThan(0);
+    // and every problem is still on the structured detail, uncapped
+    expect((error as { detail: { problems: unknown[] } }).detail.problems).toHaveLength(40);
+  });
+
   it("names the refusal on the name parameter itself", () => {
     const name = capturedTool().parameters?.properties?.name?.description ?? "";
     expect(name).toMatch(/Required/);

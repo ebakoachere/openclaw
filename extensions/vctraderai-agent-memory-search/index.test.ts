@@ -2,6 +2,30 @@ import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-tes
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import plugin, { runAgentMemorySearch, AGENT_MEMORY_SEARCH_TOOL_NAME } from "./index.js";
 
+// The seventeen names in core/openclaw/memory_graph.py: OWNED_NODE_TYPES (6)
+// | REFERENCE_NODE_TYPES (11). Typed here because there is no import across
+// the two languages -- the load-bearing guard is the baked surface lock, which
+// reads this enum out of the pushed image. This is the local tripwire.
+const EXPECTED_NODE_TYPES = [
+  "account",
+  "asset_group",
+  "dataset",
+  "decision",
+  "event",
+  "failure",
+  "finding",
+  "instrument",
+  "open_question",
+  "preference",
+  "regime",
+  "report",
+  "run",
+  "session",
+  "specialist",
+  "strategy",
+  "theme",
+];
+
 const WORKSPACE_ID = "11111111-2222-3333-4444-555555555555";
 
 type Captured = {
@@ -92,6 +116,71 @@ describe("vctraderai-agent-memory-search", () => {
     const parsed = new URL(captured.url);
     expect(parsed.searchParams.getAll("node_type")).toEqual(["finding", "failure"]);
     expect(captured.url).not.toContain("finding%2Cfailure");
+  });
+
+  // THE DEFECT THIS FILE DID NOT CATCH, and the reason it did not.
+  //
+  // `node_type` carried eleven of the platform's seventeen names, and the
+  // comment above the array called itself "the full D-17 node vocabulary". Six
+  // node types were therefore unrequestable and no test noticed, because every
+  // test here used 'finding' and 'failure' -- two of the eleven that were
+  // present. A fixture drawn from the names that work cannot find the names
+  // that are missing.
+  it("offers the whole platform node vocabulary, not the subset the fixtures happen to use", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-memory-search" });
+    plugin.register(captured.api);
+    const params = captured.tools[0].parameters as {
+      properties: { node_type: { items: { anyOf: { const: string }[] } } };
+    };
+    const offered = params.properties.node_type.items.anyOf.map((m) => m.const);
+    expect(offered).toEqual(EXPECTED_NODE_TYPES);
+    // Stated separately so a future addition fails on the COUNT with a readable
+    // number rather than on a long array diff.
+    expect(offered).toHaveLength(17);
+    // The six that were missing, named. If the array is ever narrowed again,
+    // this says which ones went.
+    for (const missing of [
+      "preference",
+      "open_question",
+      "theme",
+      "regime",
+      "event",
+      "asset_group",
+    ]) {
+      expect(offered).toContain(missing);
+    }
+  });
+
+  // hops=0 is a MEANINGFUL value and a falsy check would drop it. The server
+  // default is 1, so a dropped 0 does not fall back to "no walk" -- it falls
+  // back to the walk, which is the opposite of the request.
+  it("forwards hops, including the falsy zero", async () => {
+    const captured = emptyCaptured();
+    await runAgentMemorySearch({ query: "x", hops: 0 }, { fetchImpl: capturingFetch(captured) });
+    expect(new URL(captured.url).searchParams.get("hops")).toBe("0");
+
+    const two = emptyCaptured();
+    await runAgentMemorySearch({ query: "x", hops: 2 }, { fetchImpl: capturingFetch(two) });
+    expect(new URL(two.url).searchParams.get("hops")).toBe("2");
+
+    // THE CONTROL: absent means absent, so the server's own default applies
+    // rather than a default this plugin invented and would have to keep in step.
+    const none = emptyCaptured();
+    await runAgentMemorySearch({ query: "x" }, { fetchImpl: capturingFetch(none) });
+    expect(new URL(none.url).searchParams.has("hops")).toBe(false);
+  });
+
+  // The description is the only thing that told the agent what this tool does,
+  // and for three days it told it the opposite. Pinned because the sentence was
+  // not wrong when written -- the backend changed underneath it.
+  it("does not tell the agent that neighbours are not returned", () => {
+    const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-memory-search" });
+    plugin.register(captured.api);
+    const description = captured.tools[0].description;
+    expect(description).not.toContain("not a graph walk");
+    expect(description).not.toContain("wider neighbourhood is not returned");
+    expect(description).toContain("via='neighbour'");
+    expect(description).toContain("hops=0");
   });
 
   it("passes limit through and omits absent parameters", async () => {

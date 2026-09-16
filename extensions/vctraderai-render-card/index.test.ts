@@ -1,5 +1,6 @@
+import { createCapturedPluginRegistration } from "openclaw/plugin-sdk/plugin-test-runtime";
 import { describe, expect, it, vi } from "vitest";
-import {
+import plugin, {
   RENDER_CARD_KINDS,
   RENDER_CARD_TOOL_NAME,
   runRenderCard,
@@ -203,5 +204,117 @@ describe("the one-line contract is enforced here, not trusted", () => {
     const result = await withWorkspace(() => runRenderCard({ kind: "chart" }, { bffFetch }));
     expect(result).toBe("No card: no price data");
     expect(result).not.toContain("File");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WHAT THE DESCRIPTION CLAIMS ABOUT THE SERVER.
+//
+// This text is the ONLY thing that tells the model what this tool can do, and
+// it went stale without a single test going red: it said "TODAY ONLY `chart`
+// COMPOSES (alerts and post_trade follow once their reads land)" long after
+// `card_composer.COMPOSERS` had grown all three. The damage is not the omission
+// -- it is that the sentence told the model to HAND-WRITE alerts and post_trade
+// as fences, which is the precise failure this tool exists to prevent. Its own
+// description says the numbers "come from the store rather than from you, and
+// they cannot be mistyped".
+//
+// These assertions cannot see across the repository boundary; the baked surface
+// lock does that. They pin the CLAIMS so the next drift is at least loud here.
+// ---------------------------------------------------------------------------
+
+function toolSpec() {
+  const captured = createCapturedPluginRegistration({ id: "vctraderai-render-card" });
+  plugin.register(captured.api);
+  return captured.tools[0];
+}
+
+describe("the description does not understate what composes", () => {
+  it("names all three composable kinds and no longer says only chart composes", () => {
+    const description = toolSpec().description;
+    expect(description).not.toContain("TODAY ONLY");
+    expect(description).not.toContain("follow once their reads land");
+    for (const kind of ["chart", "alerts", "post_trade"]) {
+      expect(description).toContain(kind);
+    }
+  });
+
+  it("still steers the judgement-shaped kinds to a fence", () => {
+    // THE CONTROL. Correcting the stale half must not quietly delete the half
+    // that was right: these kinds are the model's own account of something and
+    // are refused by name.
+    const description = toolSpec().description;
+    for (const kind of ["digest", "watchlist", "comparison", "order_ticket", "signal"]) {
+      expect(description).toContain(kind);
+    }
+    expect(description).toContain("vn-artifact fence");
+  });
+});
+
+describe("the annotation vocabulary reaches the model", () => {
+  // DEFECT 4. The agent was told `annotations` exists and nothing about how to
+  // fill it, so it never filled it and /chart produced an unmarked chart. The
+  // shapes below are derived in docs/agent_chart_annotations.md from
+  // web3 lwchart-derive.ts + lwchart-primitive.ts, each pinned by a frontend
+  // test with a negative control.
+
+  function paramsDescription(): string {
+    const parameters = toolSpec().parameters as {
+      properties: { params: { description?: string } };
+    };
+    return parameters.properties.params.description ?? "";
+  }
+
+  it("offers exactly the eight kinds the renderer knows", () => {
+    // DERIVED FROM THE TEXT, not substring-matched. The first draft of this
+    // test asserted the description did not CONTAIN "fibonacci" -- and failed,
+    // because the description names fibonacci precisely to say it does not
+    // exist. "Mentioned as absent" and "offered as a kind" are different facts,
+    // and a control that cannot tell them apart is not a control.
+    const offered = paramsDescription()
+      .split("\n")
+      .map((line) => /^ {2}(\w+)\s+\{kind,/.exec(line)?.[1])
+      .filter((name): name is string => Boolean(name))
+      .toSorted();
+
+    expect(offered).toEqual([
+      "level",
+      "marker",
+      "news",
+      "pattern",
+      "playbook",
+      "session",
+      "trendline",
+      "zone",
+    ]);
+    // NON-VACUITY: if the line format ever changes, the regex above would
+    // quietly match nothing and the comparison would be against an empty list.
+    expect(offered).toHaveLength(8);
+
+    // The invented kinds ARE named, and must be -- an unknown kind is dropped
+    // in silence, so the model has to be told they do not exist rather than
+    // left to find out by getting no mark.
+    for (const invented of ["fibonacci", "vwap", "arrow"]) {
+      expect(paramsDescription()).toContain(invented);
+      expect(offered).not.toContain(invented);
+    }
+  });
+
+  it("carries the three traps a model actually falls into", () => {
+    const text = paramsDescription();
+    // 1. Lightweight Charts attaches a marker to its BAR. The superseded canvas
+    //    engine read `price` here; this one does not.
+    expect(text).toContain("`marker` IGNORES `price`");
+    // 2. The one genuine inconsistency: objects in `trendline`, bare numbers in
+    //    `session`. The wrong spelling draws nothing.
+    expect(text).toContain("BARE NUMBERS");
+    // 3. The headline. An out-of-range index does not refuse -- it lands on the
+    //    last bar, and the agent gets a confident mark in the wrong place.
+    expect(text).toContain("CLAMPED");
+    expect(text).toContain("OMIT the annotation rather than guess");
+  });
+
+  it("says a missing required key drops the whole annotation silently", () => {
+    expect(paramsDescription()).toContain("in silence");
   });
 });

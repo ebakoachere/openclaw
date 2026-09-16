@@ -176,7 +176,7 @@ describe("vctraderai-agent-memory-search", () => {
   it("does not tell the agent that neighbours are not returned", () => {
     const captured = createCapturedPluginRegistration({ id: "vctraderai-agent-memory-search" });
     plugin.register(captured.api);
-    const description = String(captured.tools[0].description);
+    const description = captured.tools[0].description;
     expect(description).not.toContain("not a graph walk");
     expect(description).not.toContain("wider neighbourhood is not returned");
     expect(description).toContain("via='neighbour'");

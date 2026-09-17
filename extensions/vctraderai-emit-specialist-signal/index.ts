@@ -57,6 +57,17 @@ const TradePlan = Type.Object({
         price: Type.Union([Price, NotReported]),
         close_pct: Type.Number({ exclusiveMinimum: 0, maximum: 100 }),
         label: Type.Optional(Type.String()),
+        // `then` is the WIRE field name and it is fixed by the backend:
+        // core/trade_plan.py's Leg carries `then` and from_mapping reads
+        // `item["then"]`, so renaming it here would silently drop every
+        // management action a specialist asked for. The rule guards against an
+        // object being mistaken for a promise; this is a TypeBox schema
+        // DESCRIBING a JSON payload — never awaited, never resolved.
+        //
+        // The directive must be the LAST comment line before the property:
+        // `disable-next-line` means the very next line, and with the prose after
+        // it the suppression landed on another comment and the rule still fired.
+        // oxlint-disable-next-line unicorn/no-thenable -- wire field name, fixed by the backend
         then: Type.Optional(
           Type.Union([
             Type.Literal("stop_to_breakeven"),

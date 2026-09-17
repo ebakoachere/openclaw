@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-margin-facts",
+  "name": "VC Trader AI Margin Facts",
+  "description": "Workspace-scoped read: the broker's own margin figures for one symbol on one account, and what a specific order costs. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "margin_facts"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

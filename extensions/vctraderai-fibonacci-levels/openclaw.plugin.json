@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-fibonacci-levels",
+  "name": "VC Trader AI Fibonacci Levels",
+  "description": "Workspace-scoped read: retracement and extension levels between two price anchors. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "fibonacci_levels"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

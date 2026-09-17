@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-convert-currency",
+  "name": "VC Trader AI Convert Currency",
+  "description": "Workspace-scoped read: whether an instrument's profit and loss reaches an account's own currency. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "convert_currency"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

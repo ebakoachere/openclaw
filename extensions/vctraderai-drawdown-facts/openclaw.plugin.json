@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-drawdown-facts",
+  "name": "VC Trader AI Drawdown Facts",
+  "description": "Workspace-scoped read: peak-to-trough and current drawdown over an equity series. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "drawdown_facts"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

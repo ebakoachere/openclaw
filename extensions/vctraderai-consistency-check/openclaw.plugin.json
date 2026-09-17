@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-consistency-check",
+  "name": "VC Trader AI Consistency Check",
+  "description": "Workspace-scoped read: whether any single day's profit exceeds the share of total profit a prop-firm challenge allows. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "consistency_check"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

@@ -1771,7 +1771,59 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-compounding-projection:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-consistency-check:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-consume-agent-signal:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-contract-facts:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-convert-currency:
     dependencies:
       typebox:
         specifier: 1.1.38
@@ -1914,6 +1966,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-drawdown-facts:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-econ-calendar-tail:
     dependencies:
       typebox:
@@ -1980,6 +2045,19 @@ importers:
         version: link:../..
 
   extensions/vctraderai-explain:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-fibonacci-levels:
     dependencies:
       typebox:
         specifier: 1.1.38
@@ -2551,6 +2629,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-leverage-facts:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-lint-strategy:
     dependencies:
       typebox:
@@ -3045,6 +3136,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-margin-facts:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-message-pm:
     dependencies:
       typebox:
@@ -3266,6 +3370,19 @@ importers:
         specifier: workspace:*
         version: link:../..
 
+  extensions/vctraderai-risk-of-ruin:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/vctraderai-search-data-vault:
     dependencies:
       typebox:
@@ -3358,6 +3475,19 @@ importers:
         version: link:../..
 
   extensions/vctraderai-store-dataset:
+    dependencies:
+      typebox:
+        specifier: 1.1.38
+        version: 1.1.38
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
+  extensions/vctraderai-swap-facts:
     dependencies:
       typebox:
         specifier: 1.1.38

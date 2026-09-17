@@ -127,6 +127,12 @@ describe("production lint suppressions", () => {
       "extensions/slack/src/monitor/provider-support.ts|typescript/no-unnecessary-type-parameters|1",
       "extensions/telegram/src/telegram-ingress-worker.runtime.ts|unicorn/require-post-message-target-origin|1",
       "extensions/telegram/src/telegram-ingress-worker.ts|unicorn/require-post-message-target-origin|1",
+      // `then` is the WIRE field name on a specialist signal's exit legs, fixed
+      // by the propfirm_manager backend (core/trade_plan.py's Leg, read by
+      // from_mapping as item["then"]). Renaming it would silently drop every
+      // management action a specialist asked for. The rule's hazard does not
+      // apply: this is a TypeBox schema describing a JSON payload, never awaited.
+      "extensions/vctraderai-emit-specialist-signal/index.ts|unicorn/no-thenable|1",
       "extensions/whatsapp/src/document-filename.ts|no-control-regex|1",
       "scripts/e2e/mcp-channels-harness.ts|unicorn/prefer-add-event-listener|1",
       "scripts/lib/extension-package-boundary.ts|typescript/no-unnecessary-type-parameters|1",

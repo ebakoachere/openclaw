@@ -38,6 +38,7 @@ export type PlaceBracketParams = {
   take_profit: string;
   intended_price: string;
   client_order_id?: string;
+  risk_basis?: "at_risk" | "notional";
 };
 
 function requireWorkspaceId(): string {
@@ -71,6 +72,13 @@ export async function runPlaceBracket(
       take_profit: params.take_profit,
       intended_price: params.intended_price,
       ...(params.client_order_id === undefined ? {} : { client_order_id: params.client_order_id }),
+      // Same conditional idiom as qty and client_order_id above, for the same
+      // reason: AgentPlaceBracketRequest is extra="forbid" and an explicit null
+      // is a second way of saying "absent" that the boundary has no reading for.
+      // The boundary has accepted this field since #1995 and
+      // agent_execute_place_bracket resolves it with has_stop=True; until this
+      // plugin sent it, the word existed on the backend and nothing could say it.
+      ...(params.risk_basis === undefined ? {} : { risk_basis: params.risk_basis }),
     },
     signal,
   });
@@ -110,6 +118,12 @@ export default defineToolPlugin({
           description: "Intended entry price as a decimal STRING.",
           minLength: 1,
         }),
+        risk_basis: Type.Optional(
+          Type.Union([Type.Literal("at_risk"), Type.Literal("notional")], {
+            description:
+              "Which reading of a percent-risk instruction the OWNER chose. A bracket's stop is mandatory, so an omitted value derives to 'at_risk' and nothing changes — the size follows the stop distance. It matters where the venue never RECEIVES the stop, such as an Alpaca crypto pair: there the stop is advisory, it sizes the trade and does not protect it, so the worst case is the whole position and 'notional' is the honest reading. Ask him which he means rather than choosing one; the answer is recorded on the order's own ledger row.",
+          }),
+        ),
         client_order_id: Type.Optional(
           Type.String({ description: "Optional caller-supplied correlation id.", minLength: 1 }),
         ),

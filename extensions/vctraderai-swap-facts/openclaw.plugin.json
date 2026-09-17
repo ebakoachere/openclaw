@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-swap-facts",
+  "name": "VC Trader AI Swap Facts",
+  "description": "Workspace-scoped read: the broker's own overnight swap figures for one symbol on one account. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "swap_facts"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

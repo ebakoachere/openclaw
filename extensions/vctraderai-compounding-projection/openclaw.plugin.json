@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-compounding-projection",
+  "name": "VC Trader AI Compounding Projection",
+  "description": "Workspace-scoped read: the balance path implied by repeating a per-period return. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "compounding_projection"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

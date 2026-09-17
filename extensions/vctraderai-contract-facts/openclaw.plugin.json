@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-contract-facts",
+  "name": "VC Trader AI Contract Facts",
+  "description": "Workspace-scoped read: what one lot IS for a symbol on an account's venue, from the executing broker's own symbol block. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "contract_facts"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

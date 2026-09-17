@@ -1,0 +1,18 @@
+{
+  "id": "vctraderai-risk-of-ruin",
+  "name": "VC Trader AI Risk Of Ruin",
+  "description": "Workspace-scoped read: probability of losing a stated share of the account over a horizon. Calls the propfirm_manager BFF as the workspace owner (PFM_AGENT_TOKEN).",
+  "activation": {
+    "onStartup": true
+  },
+  "contracts": {
+    "tools": [
+      "risk_of_ruin"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

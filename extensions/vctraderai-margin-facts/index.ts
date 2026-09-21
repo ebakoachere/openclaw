@@ -29,7 +29,42 @@ export type MarginFactsDeps = {
   threadId?: string;
 };
 
-const PLUGIN_BOUND_MS = 30_000;
+/**
+ * This plugin's own abort bound, in milliseconds.
+ *
+ * IT MUST STAY ABOVE THE PLATFORM'S CEILING, and the ORDERING is the point
+ * rather than the value. The platform bounds the terminal round trip at
+ * `_MARGIN_ROUND_TRIP_SECONDS = 25.0` (propfirm_manager,
+ * `web_api/risk_tools/service.py`, raised from 20.0 by P3d). Whichever bound
+ * fires first decides what the trader sees:
+ *
+ *   platform first -> a REPORTED timeout. The platform knows it waited 25 s
+ *                     and says so, and the agent can pass that on.
+ *   plugin first   -> an ABORTED fetch. The platform's answer is thrown away
+ *                     in flight and the failure arrives with no duration and
+ *                     nothing to explain it.
+ *
+ * P3d lifted the platform bound 20 -> 25 and left 5 s of headroom against this
+ * plugin's 30 s. NOTHING IN EITHER REPOSITORY ASSERTED THE ORDERING, so the
+ * next lift would silently invert it. 35 s restores 10 s, and the guard beside
+ * this file names BOTH numbers so an inversion fails a test rather than a
+ * trader's margin question.
+ */
+const PLUGIN_BOUND_MS = 35_000;
+
+/**
+ * The platform's ceiling, mirrored here ONLY so the guard can compare them.
+ *
+ * It is a copy, and a copy is the honest option: this repository cannot import
+ * from propfirm_manager. The alternative is asserting nothing, which is what
+ * P3d left behind. The mirror is PAIRED with a test on the platform side that
+ * reads its own constant and asserts the same inequality, so a change to
+ * either repo fails somewhere rather than nowhere.
+ */
+export const PLATFORM_MARGIN_ROUND_TRIP_MS = 25_000;
+
+/** Exported for the guard; the plugin itself uses the private constant. */
+export const VCTRADERAI_MARGIN_FACTS_BOUND_MS = PLUGIN_BOUND_MS;
 
 function requireWorkspaceId(): string {
   const workspaceId = process.env.PFM_WORKSPACE_ID;
